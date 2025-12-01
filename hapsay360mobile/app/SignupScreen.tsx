@@ -15,24 +15,36 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-const API_BASE = "http://192.168.1.34:3000";
+// Make sure this IP matches your computer's IP
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function SignupScreen() {
   const router = useRouter();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  // Updated state variables to match User Model
+  const [givenName, setGivenName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
+  const [phone_number, setPhoneNumber] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [phone_number, setPhoneNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert("Error", "Email and password are required");
+    // Validate all required fields
+    if (
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !givenName ||
+      !surname ||
+      !middleName
+    ) {
+      Alert.alert("Error", "All fields marked with * are required");
       return;
     }
 
@@ -52,10 +64,12 @@ export default function SignupScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // Send data exactly as the Backend Model expects it
           email,
           password,
-          firstName: firstName || null,
-          lastName: lastName || null,
+          given_name: givenName,
+          middle_name: middleName,
+          surname: surname,
           phone_number: phone_number || null,
         }),
       });
@@ -125,24 +139,35 @@ export default function SignupScreen() {
             Fill in your information to get started
           </Text>
 
-          {/* First Name Input */}
+          {/* Given Name Input */}
           <TextInput
             className="bg-gray-100 rounded-lg px-4 py-4 mb-4 text-gray-700 text-base"
-            placeholder="First Name (Optional)"
+            placeholder="Given Name *"
             placeholderTextColor="#9CA3AF"
-            value={firstName}
-            onChangeText={setFirstName}
+            value={givenName}
+            onChangeText={setGivenName}
             autoCapitalize="words"
             editable={!loading}
           />
 
-          {/* Last Name Input */}
+          {/* Middle Name Input */}
           <TextInput
             className="bg-gray-100 rounded-lg px-4 py-4 mb-4 text-gray-700 text-base"
-            placeholder="Last Name (Optional)"
+            placeholder="Middle Name *"
             placeholderTextColor="#9CA3AF"
-            value={lastName}
-            onChangeText={setLastName}
+            value={middleName}
+            onChangeText={setMiddleName}
+            autoCapitalize="words"
+            editable={!loading}
+          />
+
+          {/* Surname Input */}
+          <TextInput
+            className="bg-gray-100 rounded-lg px-4 py-4 mb-4 text-gray-700 text-base"
+            placeholder="Surname *"
+            placeholderTextColor="#9CA3AF"
+            value={surname}
+            onChangeText={setSurname}
             autoCapitalize="words"
             editable={!loading}
           />
@@ -231,7 +256,6 @@ export default function SignupScreen() {
               loading ? "bg-gray-400" : "bg-[#4338ca]"
             } rounded-full py-4 items-center mb-6`}
             activeOpacity={0.8}
-            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="white" />

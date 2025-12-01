@@ -21,7 +21,7 @@ import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 1. MATCHING YOUR WORKING CONFIG
-const API_BASE = "http://192.168.1.34:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function TrackRequests() {
   const router = useRouter();
@@ -302,8 +302,8 @@ export default function TrackRequests() {
                   <Text className="font-bold text-gray-900 mb-1">
                     Assigned Officer:{" "}
                     <Text className="font-normal">
-                      {selectedRequest.assigned_officer
-                        ? `${selectedRequest.assigned_officer.first_name || ""} ${selectedRequest.assigned_officer.last_name || ""}`
+                      {selectedRequest.assigned_Officer
+                        ? `${selectedRequest.assigned_Officer.first_name || ""} ${selectedRequest.assigned_Officer.last_name || ""}`
                         : "Unassigned"}
                     </Text>
                   </Text>

@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "../components/GradientHeader";
 
 // NOTE: Make sure this IP is correct
-const API_BASE = "http://192.168.1.34:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 const ChevronRight = () => (
   <Ionicons name="chevron-forward-outline" size={20} color="#6B7280" />
@@ -189,7 +189,7 @@ export default function ProfileScreen() {
                   style: "destructive",
                   onPress: async () => {
                     await AsyncStorage.clear();
-                    router.replace("/");
+                    router.replace("/logout");
                   },
                 },
               ]);

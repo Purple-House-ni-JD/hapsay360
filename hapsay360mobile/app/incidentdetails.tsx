@@ -20,7 +20,7 @@ import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.1.34:3000";
 
 export default function IncidentDetails() {
   const router = useRouter();

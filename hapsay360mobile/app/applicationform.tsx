@@ -246,7 +246,7 @@ export default function ApplicationForm() {
   const [spouseQualifier, setSpouseQualifier] = useState("");
 
   // ----------------------- Auth / API -----------------------
-  const API_BASE = "http://192.168.1.6:3000/api/application";
+  const API_BASE = "http://192.168.1.34:3000/api/application";
 
   const getAuthToken = async () => {
     try {
@@ -262,17 +262,11 @@ export default function ApplicationForm() {
       setLoading(true);
       const token = await getAuthToken();
 
-      console.log("[DEBUG] Token exists:", !!token);
-      console.log("[DEBUG] API URL:", `${API_BASE}/my-application`);
-
       if (!token) {
-        console.log("[DEBUG] No token found, redirecting to login");
         Alert.alert("Error", "Please login again");
         router.push("/login");
         return;
       }
-
-      console.log("[DEBUG] Making fetch request...");
 
       const res = await fetch(`${API_BASE}/my-application`, {
         method: "GET",
@@ -280,101 +274,79 @@ export default function ApplicationForm() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-      }).catch((fetchError) => {
-        console.error("[DEBUG] Network/Fetch error:", fetchError);
-        throw new Error(
-          `Network error: ${fetchError.message}. Check if backend is running at ${API_BASE}`
-        );
       });
-
-      console.log("[DEBUG] fetchProfile status:", res.status);
-      console.log("[DEBUG] fetchProfile ok:", res.ok);
 
       if (!res.ok) {
         if (res.status === 401) {
-          console.log("[DEBUG] Unauthorized - session expired");
           Alert.alert("Session Expired", "Please login again");
           router.push("/login");
           return;
         }
-
-        // Try to get error text
-        let errText = "Unknown error";
-        try {
-          errText = await res.text();
-          console.error("[DEBUG] Error response:", errText);
-        } catch (e) {
-          console.error("[DEBUG] Could not read error text:", e);
-        }
-
-        throw new Error(`Server error (${res.status}): ${errText}`);
+        const errText = await res.text().catch(() => "Unknown error");
+        throw new Error(errText);
       }
 
       const data = await res.json();
-      console.log("[DEBUG] Received data:", JSON.stringify(data, null, 2));
       const p = data.profile || {};
 
-      // Check if user has existing data
-      if (p.personal_info?.givenName) {
+      if (p.personal_info?.given_name) {
         setHasExistingProfile(true);
-        Alert.alert(
-          "Profile Found",
-          "Your previously saved information has been loaded. You can edit and update it."
-        );
 
-        // Load Personal Info
-        setGivenName(p.personal_info?.givenName || "");
-        setMiddleName(p.personal_info?.middleName || "");
+        // Map personal_info
+        setGivenName(p.personal_info?.given_name || "");
+        setMiddleName(p.personal_info?.middle_name || "");
         setSurname(p.personal_info?.surname || "");
         setQualifier(p.personal_info?.qualifier || "");
         setSex(p.personal_info?.sex || "");
-        setCivilStatus(p.personal_info?.civilStatus || "");
-        setBirthdate(formatDateToLocal(p.personal_info?.birthdate || ""));
-        setIsPWD(p.personal_info?.isPWD || false);
-        setIsFirstTimeJobSeeker(p.personal_info?.isFirstTimeJobSeeker || false);
+        setCivilStatus(p.personal_info?.civil_status || "");
+        setBirthdate(formatDateToLocal(p.personal_info?.birthday || ""));
+        setIsPWD(p.personal_info?.pwd || false);
+        setIsFirstTimeJobSeeker(
+          p.personal_info?.first_time_job_seeker || false
+        );
         setNationality(p.personal_info?.nationality || "");
-        setBirthPlace(p.personal_info?.birthPlace || "");
-        setOtherCountry(p.personal_info?.otherCountry || "");
+        setBirthPlace(p.personal_info?.birth_place || "");
+        setOtherCountry(p.personal_info?.other_country || "");
 
-        // Load Address
-        setHouseNo(p.address?.houseNo || "");
+        // Map address
+        setHouseNo(p.address?.house_no || "");
         setStreet(p.address?.street || "");
         setCity(p.address?.city || "");
         setBarangay(p.address?.barangay || "");
         setProvince(p.address?.province || "");
-        setPostalCode(p.address?.postalCode || "");
+        setPostalCode(p.address?.postal_code || "");
         setCountry(p.address?.country || "");
         setEmail(p.address?.email || "");
         setMobile(p.address?.mobile || "");
         setTelephone(p.address?.telephone || "");
 
-        // Load Other Info
+        // Map other_info
         setHeight(p.other_info?.height || "");
         setWeight(p.other_info?.weight || "");
         setComplexion(p.other_info?.complexion || "");
-        setIdentifyingMarks(p.other_info?.identifyingMarks || "");
-        setBloodType(p.other_info?.bloodType || "");
+        setIdentifyingMarks(p.other_info?.identifying_marks || "");
+        setBloodType(p.other_info?.blood_type || "");
         setReligion(p.other_info?.religion || "");
         setEducation(p.other_info?.education || "");
         setOccupation(p.other_info?.occupation || "");
 
-        // Load Family Info
-        setFatherGiven(p.family?.father?.given || "");
-        setFatherMiddle(p.family?.father?.middle || "");
+        // Map family
+        setFatherGiven(p.family?.father?.given_name || "");
+        setFatherMiddle(p.family?.father?.middle_name || "");
         setFatherSurname(p.family?.father?.surname || "");
         setFatherQualifier(p.family?.father?.qualifier || "");
-        setFatherBirthPlace(p.family?.father?.birthPlace || "");
-        setFatherOtherCountry(p.family?.father?.otherCountry || "");
+        setFatherBirthPlace(p.family?.father?.birth_place || "");
+        setFatherOtherCountry(p.family?.father?.other_country || "");
 
-        setMotherGiven(p.family?.mother?.given || "");
-        setMotherMiddle(p.family?.mother?.middle || "");
+        setMotherGiven(p.family?.mother?.given_name || "");
+        setMotherMiddle(p.family?.mother?.middle_name || "");
         setMotherSurname(p.family?.mother?.surname || "");
         setMotherQualifier(p.family?.mother?.qualifier || "");
-        setMotherBirthPlace(p.family?.mother?.birthPlace || "");
-        setMotherOtherCountry(p.family?.mother?.otherCountry || "");
+        setMotherBirthPlace(p.family?.mother?.birth_place || "");
+        setMotherOtherCountry(p.family?.mother?.other_country || "");
 
-        setSpouseGiven(p.family?.spouse?.given || "");
-        setSpouseMiddle(p.family?.spouse?.middle || "");
+        setSpouseGiven(p.family?.spouse?.given_name || "");
+        setSpouseMiddle(p.family?.spouse?.middle_name || "");
         setSpouseSurname(p.family?.spouse?.surname || "");
         setSpouseQualifier(p.family?.spouse?.qualifier || "");
       } else {
@@ -383,19 +355,13 @@ export default function ApplicationForm() {
 
       setUserLoaded(true);
     } catch (err: any) {
-      console.error("[DEBUG] fetchProfile failed:", err);
-      console.error("[DEBUG] Error message:", err.message);
-      console.error("[DEBUG] Error stack:", err.stack);
-
-      // Set user as loaded even on error so form can be used
+      console.error("fetchProfile failed:", err);
       setUserLoaded(true);
       setHasExistingProfile(false);
-
       Alert.alert(
         "Could Not Load Profile",
         "Unable to load your previous data. You can still fill out the form. Error: " +
-          err.message,
-        [{ text: "OK" }]
+          err.message
       );
     } finally {
       setLoading(false);

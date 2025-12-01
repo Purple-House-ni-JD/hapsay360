@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,14 +8,17 @@ import {
   StatusBar,
   useColorScheme,
   TextInput,
-  Pressable,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Home, FileText, User } from "lucide-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
+
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function MyAccount() {
   const router = useRouter();
@@ -23,19 +26,133 @@ export default function MyAccount() {
   const isDark = colorScheme === "dark";
   const bgColor = isDark ? "#1a1f4d" : "#ffffff";
 
+  // State Management
   const [isEditing, setIsEditing] = useState(false);
-  const [firstname, setFirstName] = useState("Sophia");
-  const [lastname, setLastName] = useState("Carter");
-  const [email, setEmail] = useState("sophiacarter@gmail.com");
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
 
-  const handleToggleEdit = () => {
+  // Form States
+  const [givenName, setGivenName] = useState("");
+  const [surname, setSurname] = useState("");
+
+  // 1. FETCH USER DATA
+  const fetchUserProfile = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const token = await AsyncStorage.getItem("authToken");
+
+      if (!userId || !token) {
+        Alert.alert("Error", "Session expired. Please log in again.");
+        router.replace("/");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const user = data.data;
+        setUserData(user);
+
+        // Pre-fill inputs with fetched data
+        setGivenName(user.personal_info?.given_name || "");
+        setSurname(user.personal_info?.surname || "");
+      } else {
+        Alert.alert("Error", data.message || "Failed to load profile");
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      Alert.alert("Error", "Cannot connect to server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  // 2. SAVE CHANGES (UPDATE USER)
+  const handleSave = async () => {
+    // Basic validation
+    if (!givenName || !surname) {
+      Alert.alert("Error", "All fields are required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const token = await AsyncStorage.getItem("authToken");
+
+      // Construct payload matching your Schema
+      // We keep existing middle_name/others to avoid overwriting them with null
+      const payload = {
+        personal_info: {
+          given_name: givenName,
+          surname: surname,
+          middle_name: userData?.personal_info?.middle_name || "",
+          // Add other personal_info fields if your backend requires them fully
+        },
+      };
+
+      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+        method: "PUT", // Or PATCH, depending on your backend route
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Success", "Profile updated successfully");
+        setIsEditing(false);
+        // Refresh local data
+        setUserData({ ...userData, ...payload });
+      } else {
+        Alert.alert(
+          "Update Failed",
+          result.message || "Could not update profile"
+        );
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      Alert.alert("Error", "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleEdit = () => {
     if (isEditing) {
-      console.log("Saved:", { firstname, lastname, email });
-      setIsEditing(false);
+      handleSave();
     } else {
       setIsEditing(true);
     }
   };
+
+  // 3. IMAGE LOGIC (SVG -> PNG FIX)
+  const profileImageUri = userData?.profile_picture
+    ? userData.profile_picture.replace("svg", "png")
+    : "https://ui-avatars.com/api/?name=User";
+
+  if (loading && !userData) {
+    return (
+      <View className="flex-1 justify-center items-center bg-white">
+        <ActivityIndicator size="large" color="#3234AB" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -51,16 +168,17 @@ export default function MyAccount() {
       <ScrollView className="flex-1 bg-white">
         {/* Profile Section */}
         <View className="items-center pt-10 pb-6">
-          <View className="w-36 h-36 rounded-full overflow-hidden mb-3 shadow-md">
+          <View className="w-36 h-36 rounded-full overflow-hidden mb-3 shadow-md border-4 border-gray-100">
             <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
-              }}
+              source={{ uri: profileImageUri }}
               className="w-full h-full"
             />
           </View>
           <Text className="text-gray-900 text-xl font-semibold">
-            {firstname} {lastname}
+            {givenName} {surname}
+          </Text>
+          <Text className="text-gray-500 text-sm">
+            ID: {userData?.custom_id}
           </Text>
         </View>
 
@@ -69,13 +187,13 @@ export default function MyAccount() {
           {/* First Name */}
           <View className="mb-4">
             <Text className="text-gray-700 text-sm font-medium mb-1">
-              First Name
+              Given Name
             </Text>
             <TextInput
-              value={firstname}
-              onChangeText={setFirstName}
+              value={givenName}
+              onChangeText={setGivenName}
               editable={isEditing}
-              placeholder="First Name"
+              placeholder="Given Name"
               className="border border-gray-300 rounded-lg px-3 py-3 text-base text-gray-900"
               style={{
                 backgroundColor: "#DEEBF8",
@@ -87,32 +205,13 @@ export default function MyAccount() {
           {/* Last Name */}
           <View className="mb-4">
             <Text className="text-gray-700 text-sm font-medium mb-1">
-              Last Name
+              Surname
             </Text>
             <TextInput
-              value={lastname}
-              onChangeText={setLastName}
+              value={surname}
+              onChangeText={setSurname}
               editable={isEditing}
-              placeholder="Last Name"
-              className="border border-gray-300 rounded-lg px-3 py-3 text-base text-gray-900"
-              style={{
-                backgroundColor: "#DEEBF8",
-                opacity: isEditing ? 1 : 0.7,
-              }}
-            />
-          </View>
-
-          {/* Email */}
-          <View className="mb-4">
-            <Text className="text-gray-700 text-sm font-medium mb-1">
-              Email
-            </Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              editable={isEditing}
-              placeholder="Email"
-              keyboardType="email-address"
+              placeholder="Surname"
               className="border border-gray-300 rounded-lg px-3 py-3 text-base text-gray-900"
               style={{
                 backgroundColor: "#DEEBF8",
@@ -126,13 +225,18 @@ export default function MyAccount() {
         <View className="mt-6 mb-8 px-6">
           {/* Edit / Save Button */}
           <TouchableOpacity
-            onPress={handleToggleEdit}
+            onPress={toggleEdit}
             style={{ backgroundColor: "#3234AB", marginBottom: 16 }}
             className="rounded-lg py-4 items-center"
+            disabled={loading && isEditing}
           >
-            <Text className="text-white font-semibold text-base">
-              {isEditing ? "Save" : "Edit Profile"}
-            </Text>
+            {loading && isEditing ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-semibold text-base">
+                {isEditing ? "Save Changes" : "Edit Profile"}
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Change Password */}

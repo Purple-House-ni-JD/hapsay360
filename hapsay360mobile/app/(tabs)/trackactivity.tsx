@@ -21,7 +21,7 @@ import GradientHeader from "../components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 1. MATCHING YOUR WORKING CONFIG
-const API_BASE = "http://192.168.1.34:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function TrackRequests() {
   const router = useRouter();
@@ -50,9 +50,9 @@ export default function TrackRequests() {
       const userId = await AsyncStorage.getItem("userId");
 
       // DEBUGGING LOGS (Check your terminal for this!)
-      // console.log("--- DEBUG TRACK REQUESTS ---");
-      // console.log("Token:", token ? "Exists" : "Missing");
-      // console.log("UserID in Storage:", userId);
+      console.log("--- DEBUG TRACK REQUESTS ---");
+      console.log("Token:", token ? "Exists" : "Missing");
+      console.log("UserID in Storage:", userId);
 
       if (!token || !userId) {
         Alert.alert("Session Error", "Please log in again.");
@@ -61,14 +61,14 @@ export default function TrackRequests() {
 
       // Updated URL with "s"
       const url = `${API_BASE}/api/blotters/my-blotters/${userId}`;
-      // console.log("Fetching URL:", url);
+      console.log("Fetching URL:", url);
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
-      // console.log("Data Received:", data); // Check if count is 0 or > 0
+      console.log("Data Received:", data); // Check if count is 0 or > 0
 
       if (data.success) {
         setRequests(data.blotters);
@@ -302,8 +302,8 @@ export default function TrackRequests() {
                   <Text className="font-bold text-gray-900 mb-1">
                     Assigned Officer:{" "}
                     <Text className="font-normal">
-                      {selectedRequest.assigned_officer
-                        ? `${selectedRequest.assigned_officer.first_name || ""} ${selectedRequest.assigned_officer.last_name || ""}`
+                      {selectedRequest.assigned_Officer
+                        ? `${selectedRequest.assigned_Officer.first_name || ""} ${selectedRequest.assigned_Officer.last_name || ""}`
                         : "Unassigned"}
                     </Text>
                   </Text>

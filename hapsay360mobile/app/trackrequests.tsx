@@ -50,9 +50,9 @@ export default function TrackRequests() {
       const userId = await AsyncStorage.getItem("userId");
 
       // DEBUGGING LOGS (Check your terminal for this!)
-      // console.log("--- DEBUG TRACK REQUESTS ---");
-      // console.log("Token:", token ? "Exists" : "Missing");
-      // console.log("UserID in Storage:", userId);
+      console.log("--- DEBUG TRACK REQUESTS ---");
+      console.log("Token:", token ? "Exists" : "Missing");
+      console.log("UserID in Storage:", userId);
 
       if (!token || !userId) {
         Alert.alert("Session Error", "Please log in again.");
@@ -61,14 +61,14 @@ export default function TrackRequests() {
 
       // Updated URL with "s"
       const url = `${API_BASE}/api/blotters/my-blotters/${userId}`;
-      // console.log("Fetching URL:", url);
+      console.log("Fetching URL:", url);
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
-      // console.log("Data Received:", data); // Check if count is 0 or > 0
+      console.log("Data Received:", data); // Check if count is 0 or > 0
 
       if (data.success) {
         setRequests(data.blotters);

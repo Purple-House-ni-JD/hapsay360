@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   View,
@@ -7,10 +7,15 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "../components/GradientHeader";
+
+// NOTE: Make sure this IP is correct
+const API_BASE = "http://192.168.1.6:3000";
 
 const ChevronRight = () => (
   <Ionicons name="chevron-forward-outline" size={20} color="#6B7280" />
@@ -38,11 +43,68 @@ const MenuItem = ({ icon, title, onPress }) => (
 export default function ProfileScreen() {
   const router = useRouter();
 
+  // State for data and loading
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUserProfile = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const token = await AsyncStorage.getItem("authToken");
+
+      if (!userId || !token) {
+        Alert.alert("Error", "Session expired. Please log in again.");
+        router.replace("/");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Fix: Get data inside the "data" wrapper
+        setUserData(data.data);
+      } else {
+        Alert.alert("API Error", data.message || "Something went wrong");
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      Alert.alert("Network Error", "Cannot connect to server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-white">
+        <ActivityIndicator size="large" color="#1E3A8A" />
+        <Text className="text-gray-500 mt-2">Loading profile...</Text>
+      </View>
+    );
+  }
+
+  // --- IMAGE URL LOGIC ---
+  // If the URL contains "svg", replace it with "png".
+  // If no URL exists, use a default avatar.
+  const profileImageUri = userData?.profile_picture
+    ? userData.profile_picture.replace("svg", "png")
+    : "https://ui-avatars.com/api/?name=User";
+
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="light-content" />
-
-      {/* Reusable Gradient Header */}
       <GradientHeader title="Profile" onBack={() => router.back()} />
 
       <ScrollView
@@ -50,32 +112,42 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Info */}
+        {/* Profile Info Section */}
         <View className="items-center pt-6 pb-4">
           <View
             className="w-36 h-36 rounded-full overflow-hidden mb-3 border-4"
             style={{ borderColor: "#E0E7FF" }}
           >
+            {/* --- THIS IS THE FIX --- */}
             <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
-              }}
+              source={{ uri: profileImageUri }}
               className="w-full h-full"
             />
           </View>
+
+          {/* User Name */}
           <Text className="text-gray-900 text-xl font-semibold">
-            Sophia Carter
+            {userData?.personal_info?.given_name}{" "}
+            {userData?.personal_info?.surname}
           </Text>
-          <Text className="text-indigo-700 text-sm mt-1 font-medium">User</Text>
+
+          {/* User Email */}
+          <Text className="text-indigo-700 text-sm mt-1 font-medium">
+            {userData?.email}
+          </Text>
+
+          {/* User ID */}
+          <Text className="text-gray-400 text-xs mt-1">
+            ID: {userData?.custom_id}
+          </Text>
         </View>
 
-        {/* Section Title */}
+        {/* Menu Section */}
         <View className="mt-2 mx-2 bg-white rounded-2xl overflow-hidden">
           <Text className="text-gray-900 font-semibold text-base px-5 py-3">
             General
           </Text>
 
-          {/* Menu Items */}
           <MenuItem
             icon="person-outline"
             title="My Account"
@@ -110,12 +182,15 @@ export default function ProfileScreen() {
             icon="log-out-outline"
             title="Log Out"
             onPress={() => {
-              Alert.alert("Log Out", "Are you sure you want to log out?", [
+              Alert.alert("Log Out", "Are you sure?", [
                 { text: "Cancel", style: "cancel" },
                 {
                   text: "Log Out",
                   style: "destructive",
-                  onPress: () => router.replace("/logout"),
+                  onPress: async () => {
+                    await AsyncStorage.clear();
+                    router.replace("/");
+                  },
                 },
               ]);
             }}

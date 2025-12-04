@@ -246,7 +246,7 @@ export default function ApplicationForm() {
   const [spouseQualifier, setSpouseQualifier] = useState("");
 
   // ----------------------- Auth / API -----------------------
-  const API_BASE = "http://192.168.1.6:3000/api/application";
+  const API_BASE = "http://192.168.0.104:3000/api/application";
 
   const getAuthToken = async () => {
     try {
@@ -369,7 +369,6 @@ export default function ApplicationForm() {
   };
 
   const handleSaveProfile = async () => {
-    // Validation
     if (!givenName || !surname || !email) {
       Alert.alert(
         "Validation Error",
@@ -379,62 +378,61 @@ export default function ApplicationForm() {
     }
 
     const profile = {
+      // Fields that will sync to User
       personal_info: {
-        givenName,
-        middleName,
-        surname,
-        qualifier,
-        sex,
-        civilStatus,
-        birthdate,
-        isPWD,
-        isFirstTimeJobSeeker,
-        nationality,
-        birthPlace,
-        otherCountry,
+        given_name: givenName,
+        middle_name: middleName,
+        surname: surname,
+        qualifier: qualifier,
+        sex: sex,
+        civil_status: civilStatus,
+        birthday: birthdate ? new Date(birthdate) : null,
+        pwd: isPWD,
+        nationality: nationality,
       },
       address: {
-        houseNo,
-        street,
-        city,
-        barangay,
-        province,
-        postalCode,
-        country,
-        email,
-        mobile,
-        telephone,
+        house_no: houseNo,
+        street: street,
+        city: city,
+        barangay: barangay,
+        province: province,
+        postal_code: postalCode,
+        country: country,
+        email: email,
+        mobile: mobile,
+        telephone: telephone,
       },
+      // Fields only for ApplicationProfile
       other_info: {
-        height,
-        weight,
-        complexion,
-        identifyingMarks,
-        bloodType,
-        religion,
-        education,
-        occupation,
+        height: height,
+        weight: weight,
+        complexion: complexion,
+        identifying_marks: identifyingMarks,
+        blood_type: bloodType,
+        religion: religion,
+        education: education,
+        occupation: occupation,
       },
       family: {
         father: {
-          given: fatherGiven,
-          middle: fatherMiddle,
+          given_name: fatherGiven,
+          middle_name: fatherMiddle,
           surname: fatherSurname,
           qualifier: fatherQualifier,
-          birthPlace: fatherBirthPlace,
-          otherCountry: fatherOtherCountry,
+          birth_place: fatherBirthPlace,
+          other_country: fatherOtherCountry,
         },
         mother: {
-          given: motherGiven,
-          middle: motherMiddle,
+          given_name: motherGiven,
+          middle_name: motherMiddle,
           surname: motherSurname,
           qualifier: motherQualifier,
-          birthPlace: motherBirthPlace,
-          otherCountry: motherOtherCountry,
+          birth_place: motherBirthPlace,
+          other_country: motherOtherCountry,
         },
         spouse: {
-          given: spouseGiven,
-          middle: spouseMiddle,
+          given_name: spouseGiven,
+          middle_name: spouseMiddle,
           surname: spouseSurname,
           qualifier: spouseQualifier,
         },
@@ -459,8 +457,6 @@ export default function ApplicationForm() {
         body: JSON.stringify(profile),
       });
 
-      console.log("[DEBUG] saveProfile status:", res.status);
-
       if (!res.ok) {
         if (res.status === 401) {
           Alert.alert("Session Expired", "Please login again");
@@ -476,9 +472,7 @@ export default function ApplicationForm() {
       Alert.alert(
         "Success",
         result.message ||
-          (hasExistingProfile
-            ? "Profile updated successfully!"
-            : "Profile saved successfully!"),
+          (hasExistingProfile ? "Profile updated!" : "Profile saved!"),
         [
           {
             text: "OK",
@@ -494,7 +488,6 @@ export default function ApplicationForm() {
     }
   };
 
-  // ----------------------- Load on mount -----------------------
   useEffect(() => {
     fetchProfile();
   }, []);

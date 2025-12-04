@@ -7,14 +7,19 @@ import {
   useColorScheme,
   Animated,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import Svg, { Defs, RadialGradient, Stop, Circle } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// UPDATE THIS TO YOUR IP
+const API_BASE = "http://192.168.1.6:3000";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -23,6 +28,37 @@ export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // --- DYNAMIC DATA STATE (Make sure these are here!) ---
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- FETCH NEWS FROM API ---
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const token = await AsyncStorage.getItem("authToken");
+
+        const response = await fetch(`${API_BASE}/api/announcements`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setNews(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch news:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNews();
+  }, []);
 
   // Animation for SOS button
   const animation = useRef(new Animated.Value(0)).current;
@@ -50,7 +86,6 @@ export default function HomeScreen() {
     outputRange: [440, 0],
   });
 
-  // Ripple scale animation - grows from center
   const rippleScale = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 10],
@@ -93,7 +128,7 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
-        {/* Floating Search Bar — centered near bottom of gradient */}
+        {/* Floating Search Bar */}
         <View
           className="absolute left-0 right-0 px-6 z-20"
           style={{
@@ -122,12 +157,11 @@ export default function HomeScreen() {
         contentContainerStyle={{
           paddingTop: 60,
           paddingHorizontal: 16,
-          paddingBottom: 40, // Added padding bottom for scrolling space
+          paddingBottom: 40,
         }}
       >
         {/* Action Cards Grid */}
         <View className="flex-row justify-between mb-4">
-          {/* Book Appointment */}
           <Pressable
             className="rounded-2xl w-[48%] p-6 items-center"
             style={{ backgroundColor: isDark ? "#2a3166" : "#DEEBF8" }}
@@ -151,7 +185,6 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
 
-          {/* Track Activity */}
           <Pressable
             className="rounded-2xl w-[48%] p-6 items-center"
             style={{ backgroundColor: isDark ? "#2a3166" : "#DEEBF8" }}
@@ -177,7 +210,6 @@ export default function HomeScreen() {
         </View>
 
         <View className="flex-row justify-between mb-6">
-          {/* File Blotter */}
           <Pressable
             className="rounded-2xl w-[48%] p-6 items-center"
             style={{ backgroundColor: isDark ? "#2a3166" : "#DEEBF8" }}
@@ -201,7 +233,6 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
 
-          {/* Nearest Help */}
           <Pressable
             className="rounded-2xl w-[48%] p-6 items-center"
             style={{ backgroundColor: isDark ? "#2a3166" : "#DEEBF8" }}
@@ -251,7 +282,8 @@ export default function HomeScreen() {
             shared with the nearest help centre and{"\n"}
             your emergency contacts.
           </Text>
-          {/* Main SOS Box with ripple effect from center */}
+
+          {/* Main SOS Box */}
           <View
             className="rounded-3xl p-6 mb-10 items-center"
             style={{
@@ -262,7 +294,6 @@ export default function HomeScreen() {
               position: "relative",
             }}
           >
-            {/* Center wrapper for button + ripple */}
             <View
               style={{
                 width: 160,
@@ -271,7 +302,6 @@ export default function HomeScreen() {
                 justifyContent: "center",
               }}
             >
-              {/* Ripple effect */}
               <Animated.View
                 style={{
                   position: "absolute",
@@ -286,7 +316,6 @@ export default function HomeScreen() {
                 }}
               />
 
-              {/* Progress Ring */}
               <Svg
                 width={160}
                 height={160}
@@ -315,7 +344,6 @@ export default function HomeScreen() {
                 />
               </Svg>
 
-              {/* SOS Button */}
               <Pressable
                 onPressIn={() => {
                   handlePressIn();
@@ -380,10 +408,9 @@ export default function HomeScreen() {
         </View>
 
         {/* ======================================================= */}
-        {/* NEW FEATURE: ANNOUNCEMENTS & NEWS                       */}
+        {/* DYNAMIC ANNOUNCEMENTS & NEWS                            */}
         {/* ======================================================= */}
         <View className="px-1 pb-10">
-          {/* Section Divider */}
           <View
             style={{
               height: 1,
@@ -394,7 +421,6 @@ export default function HomeScreen() {
             }}
           />
 
-          {/* Section Title */}
           <Text
             className="text-lg font-bold text-center mb-5"
             style={{ color: isDark ? "#ffffff" : "#000000" }}
@@ -402,108 +428,61 @@ export default function HomeScreen() {
             Announcements & News
           </Text>
 
-          {/* News Items Container */}
           <View className="gap-y-4">
-            {/* Card 1: Case Update */}
-            <View
-              className="flex-row rounded-3xl p-3 items-center border"
-              style={{
-                backgroundColor: isDark ? "#2a3166" : "#ffffff",
-                borderColor: isDark ? "#3a4180" : "#1f2937",
-              }}
-            >
-              {/* Image Placeholder */}
-              <View className="w-28 h-20 bg-gray-400 rounded-2xl overflow-hidden mr-4">
-                <Image
-                  source={{
-                    uri: "https://picsum.photos/200/300?grayscale", // Placeholder image
-                  }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
-              </View>
-              {/* Text Content */}
-              <View className="flex-1 pr-2">
-                <Text
-                  className="font-bold text-base mb-1"
-                  style={{ color: isDark ? "#ffffff" : "#000000" }}
-                >
-                  Case Update
-                </Text>
-                <Text
-                  className="text-xs leading-4"
-                  style={{ color: isDark ? "#d1d5db" : "#4b5563" }}
-                >
-                  Investigation on recent theft case now under review.
-                </Text>
-              </View>
-            </View>
+            {loading ? (
+              <ActivityIndicator size="small" color="#3b3b8a" />
+            ) : news.length === 0 ? (
+              <Text className="text-center text-gray-500 italic">
+                No recent announcements.
+              </Text>
+            ) : (
+              news.map((item, index) => {
+                // Construct Image URL
+                let imageUrl = "https://picsum.photos/200/300?grayscale";
+                if (item.attachments && item.attachments.length > 0) {
+                  imageUrl = `${API_BASE}${item.attachments[0].url}`;
+                }
 
-            {/* Card 2: Curfew Reminder */}
-            <View
-              className="flex-row rounded-3xl p-3 items-center border"
-              style={{
-                backgroundColor: isDark ? "#2a3166" : "#ffffff",
-                borderColor: isDark ? "#3a4180" : "#1f2937",
-              }}
-            >
-              <View className="w-28 h-20 bg-gray-600 rounded-2xl overflow-hidden mr-4">
-                <Image
-                  source={{
-                    uri: "https://picsum.photos/200/301?grayscale",
-                  }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
-              </View>
-              <View className="flex-1 pr-2">
-                <Text
-                  className="font-bold text-base mb-1"
-                  style={{ color: isDark ? "#ffffff" : "#000000" }}
-                >
-                  Curfew Reminder
-                </Text>
-                <Text
-                  className="text-xs leading-4"
-                  style={{ color: isDark ? "#d1d5db" : "#4b5563" }}
-                >
-                  Curfew hours for minors remain at 10:00 PM–4:00 AM.
-                </Text>
-              </View>
-            </View>
+                return (
+                  <View
+                    key={item._id || index}
+                    className="flex-row rounded-3xl p-3 items-center border"
+                    style={{
+                      backgroundColor: isDark ? "#2a3166" : "#ffffff",
+                      borderColor: isDark ? "#3a4180" : "#1f2937",
+                    }}
+                  >
+                    {/* News Image */}
+                    <View className="w-28 h-20 bg-gray-400 rounded-2xl overflow-hidden mr-4">
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    </View>
 
-            {/* Card 3: Traffic Advisory */}
-            <View
-              className="flex-row rounded-3xl p-3 items-center border"
-              style={{
-                backgroundColor: isDark ? "#2a3166" : "#ffffff",
-                borderColor: isDark ? "#3a4180" : "#1f2937",
-              }}
-            >
-              <View className="w-28 h-20 bg-gray-500 rounded-2xl overflow-hidden mr-4">
-                <Image
-                  source={{
-                    uri: "https://picsum.photos/200/302?grayscale",
-                  }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
-              </View>
-              <View className="flex-1 pr-2">
-                <Text
-                  className="font-bold text-base mb-1"
-                  style={{ color: isDark ? "#ffffff" : "#000000" }}
-                >
-                  Traffic Advisory
-                </Text>
-                <Text
-                  className="text-xs leading-4"
-                  style={{ color: isDark ? "#d1d5db" : "#4b5563" }}
-                >
-                  Expect heavy traffic near Vamenta.
-                </Text>
-              </View>
-            </View>
+                    {/* Text Content */}
+                    <View className="flex-1 pr-2">
+                      <Text
+                        className="font-bold text-base mb-1"
+                        style={{ color: isDark ? "#ffffff" : "#000000" }}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text
+                        className="text-xs leading-4"
+                        style={{ color: isDark ? "#d1d5db" : "#4b5563" }}
+                        numberOfLines={2}
+                      >
+                        {item.details}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         </View>
       </ScrollView>

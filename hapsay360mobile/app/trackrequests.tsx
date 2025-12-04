@@ -20,8 +20,7 @@ import { X } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// 1. MATCHING YOUR WORKING CONFIG
-const API_BASE = "http://192.168.1.48:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function TrackRequests() {
   const router = useRouter();
@@ -49,26 +48,17 @@ export default function TrackRequests() {
       const token = await AsyncStorage.getItem("authToken");
       const userId = await AsyncStorage.getItem("userId");
 
-      // DEBUGGING LOGS (Check your terminal for this!)
-      console.log("--- DEBUG TRACK REQUESTS ---");
-      console.log("Token:", token ? "Exists" : "Missing");
-      console.log("UserID in Storage:", userId);
-
       if (!token || !userId) {
         Alert.alert("Session Error", "Please log in again.");
         return;
       }
 
-      // Updated URL with "s"
       const url = `${API_BASE}/api/blotters/my-blotters/${userId}`;
-      console.log("Fetching URL:", url);
-
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
-      console.log("Data Received:", data); // Check if count is 0 or > 0
 
       if (data.success) {
         setRequests(data.blotters);
@@ -84,7 +74,6 @@ export default function TrackRequests() {
 
   // --- MODAL HANDLERS ---
   const openDetailsModal = (item) => {
-    console.log("Opening Item:", item); // Debug check
     setSelectedRequest(item);
     setShowDetailsModal(true);
     Animated.timing(slideAnim, {
@@ -179,8 +168,11 @@ export default function TrackRequests() {
                     <Text className="text-gray-900 font-medium text-base">
                       Incident Type
                     </Text>
+                    {/* FIXED: incident.type (matches your schema) */}
                     <Text className="text-gray-600 text-sm">
-                      {item.incident?.incident_type || "N/A"}
+                      {item.incident?.type ||
+                        item.incident?.incident_type ||
+                        "N/A"}
                     </Text>
                   </View>
 
@@ -222,7 +214,7 @@ export default function TrackRequests() {
         <View className="h-8" />
       </ScrollView>
 
-      {/* --- DETAILS MODAL (FIXED STRUCTURE) --- */}
+      {/* --- DETAILS MODAL --- */}
       <Modal visible={showDetailsModal} transparent animationType="none">
         <View className="flex-1 bg-black/50 justify-end">
           <TouchableWithoutFeedback onPress={closeDetailsModal}>
@@ -260,18 +252,20 @@ export default function TrackRequests() {
                   <Text className="text-sm text-gray-500 mb-3">
                     Reference No:{" "}
                     <Text className="font-semibold text-gray-700">
-                      {selectedRequest.custom_id ||
-                        selectedRequest.blotterNumber ||
-                        "N/A"}
+                      {selectedRequest.blotterNumber ||
+                        selectedRequest.custom_id}
                     </Text>
                   </Text>
 
                   <View className="h-[1px] bg-gray-300 mb-4" />
 
+                  {/* FIXED: Reading from incident.type */}
                   <Text className="font-bold text-gray-900 mb-1">
                     Incident Type:{" "}
                     <Text className="font-normal">
-                      {selectedRequest.incident?.incident_type || "N/A"}
+                      {selectedRequest.incident?.type ||
+                        selectedRequest.incident?.incident_type ||
+                        "N/A"}
                     </Text>
                   </Text>
 
@@ -287,18 +281,13 @@ export default function TrackRequests() {
                     </Text>
                   </Text>
 
-                  {/* Handling Description correctly */}
                   <Text className="font-bold text-gray-900 mb-1">
                     Description:{" "}
                     <Text className="font-normal">
-                      "
-                      {selectedRequest.incident?.description ||
-                        "No description provided"}
-                      "
+                      "{selectedRequest.incident?.description || "N/A"}"
                     </Text>
                   </Text>
 
-                  {/* Handling Officer population safely */}
                   <Text className="font-bold text-gray-900 mb-1">
                     Assigned Officer:{" "}
                     <Text className="font-normal">
@@ -317,35 +306,18 @@ export default function TrackRequests() {
 
                   <View className="h-[1px] bg-gray-300 mb-4" />
 
-                  {/* --- DYNAMIC STATUS TIMELINE --- */}
-                  <Text className="text-xl font-bold text-gray-900 mb-3">
-                    Status Timeline
-                  </Text>
-                  {/* Simplified Timeline View for now */}
-                  <View className="mb-6">
-                    <Text className="text-gray-500 italic">
-                      Timeline view coming soon...
-                    </Text>
-                  </View>
-
-                  <View className="h-[1px] bg-gray-300 mb-4" />
-
-                  {/* --- Attachments --- */}
+                  {/* Attachments */}
                   <Text className="text-xl font-bold text-gray-900 mb-3">
                     Attachments & Evidence
                   </Text>
                   <View className="mb-4">
                     <View className="w-full h-40 bg-gray-200 rounded-xl mb-2 items-center justify-center overflow-hidden">
-                      {/* Check if attachments exist and is array, or check photoEvidence field if you used that */}
-                      {selectedRequest.photoEvidence ||
-                      (selectedRequest.attachments &&
-                        selectedRequest.attachments.length > 0) ? (
+                      {/* Check if attachments exist and are photo types */}
+                      {selectedRequest.attachments &&
+                      selectedRequest.attachments.length > 0 &&
+                      selectedRequest.attachments[0].type === "photo" ? (
                         <Image
-                          source={{
-                            uri:
-                              selectedRequest.photoEvidence ||
-                              selectedRequest.attachments[0]?.url,
-                          }}
+                          source={{ uri: selectedRequest.attachments[0].url }}
                           style={{ width: "100%", height: "100%" }}
                           resizeMode="cover"
                         />
@@ -359,7 +331,7 @@ export default function TrackRequests() {
 
                   <View className="h-[1px] bg-gray-300 mb-4" />
 
-                  {/* --- Communication Options --- */}
+                  {/* Communication Options */}
                   <Text className="text-xl font-bold text-gray-900 mb-3">
                     Communication Options
                   </Text>

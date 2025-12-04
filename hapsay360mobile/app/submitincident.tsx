@@ -3,7 +3,6 @@ import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import GradientHeader from "./components/GradientHeader";
-import index from "./(tabs)/index";
 
 export default function SubmitIncident() {
   const router = useRouter();
@@ -22,14 +21,12 @@ export default function SubmitIncident() {
     status,
   } = params;
 
-  const handleConfirm = () => {
-    router.push("/blotterconfirmation");
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
       <GradientHeader
-        title="Blotter Confirmation"
+        // Changed title to be more descriptive since this is the receipt
+        title="Submission Successful"
+        // Prevent going back to the form (optional, but good UX)
         onBack={() => router.back()}
       />
 
@@ -38,6 +35,19 @@ export default function SubmitIncident() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 16 }}
       >
+        {/* Success Banner (Optional Visual Touch) */}
+        <View className="items-center mb-6">
+          <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-2">
+            <Text style={{ fontSize: 30 }}>✅</Text>
+          </View>
+          <Text className="text-xl font-bold text-gray-900">
+            Blotter Filed!
+          </Text>
+          <Text className="text-gray-500 text-sm">
+            Ref #: {blotterNumber || "Pending"}
+          </Text>
+        </View>
+
         {/* Details Card */}
         <View className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm mb-6">
           {/* Reporter Info */}
@@ -121,6 +131,9 @@ export default function SubmitIncident() {
                 <Text className="text-gray-900 font-semibold">
                   {stationName || "N/A"}
                 </Text>
+                <Text className="text-green-600 text-sm font-medium">
+                  Status: {status || "Pending"}
+                </Text>
               </View>
             </View>
           </View>
@@ -130,41 +143,35 @@ export default function SubmitIncident() {
         <View>
           <TouchableOpacity
             className="bg-indigo-600 rounded-xl py-4 items-center mb-3"
-            onPress={handleConfirm}
+            // FIX: "Done" should go Home, not to another confirmation page
+            onPress={() => router.replace("/(tabs)")}
           >
             <Text className="text-white font-semibold text-base">Done</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             className="bg-white border-2 border-indigo-600 rounded-xl py-4 items-center mb-3"
-            onPress={() => router.push("/myappointments")}
+            // FIX: Point to the correct tracking page we made earlier
+            onPress={() => router.replace("/(tabs)/trackactivity")}
           >
             <Text className="text-indigo-600 font-semibold text-base">
               Track My Blotter
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-white border border-gray-300 rounded-xl py-4 items-center"
-            onPress={() => router.push("/(tabs)")}
-          >
-            <Text className="text-gray-700 font-semibold text-base">
-              Return to Home
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Help Text */}
-        <View className="mt-8 p-4 bg-blue-50 rounded-lg">
+        <View className="mt-4 mb-8 p-4 bg-blue-50 rounded-lg">
           <Text className="text-blue-900 font-semibold mb-2">
             What happens next?
           </Text>
-          <Text className="text-blue-800 text-sm">
+          <Text className="text-blue-800 text-sm leading-5">
             • Your blotter has been forwarded to{" "}
-            {stationName || "the police station"}
-            {"\n"}• You will be contacted if additional information is needed
-            {"\n"}• Track your blotter status anytime using your blotter number
-            {"\n"}• Keep your blotter number safe for future reference
+            <Text className="font-bold">
+              {stationName || "the police station"}
+            </Text>
+            .{"\n"}• You will be contacted if additional information is needed.
+            {"\n"}• Track your blotter status anytime using your blotter number.
           </Text>
         </View>
       </ScrollView>

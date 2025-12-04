@@ -33,7 +33,7 @@ export default function PoliceClearanceSummary() {
   const paymentMethod = params.paymentMethod as string;
   const appointmentDataParam = params.appointmentData as string;
 
-  const API_BASE = "http://192.168.1.34:3000/api";
+  const API_BASE = "http://192.168.1.48:3000/api";
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -21,7 +21,7 @@ import GradientHeader from "../components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 1. MATCHING YOUR WORKING CONFIG
-const API_BASE = "http://192.168.1.34:3000";
+const API_BASE = "http://192.168.1.48:3000";
 
 export default function TrackRequests() {
   const router = useRouter();

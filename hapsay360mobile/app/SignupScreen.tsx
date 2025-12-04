@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 // Make sure this IP matches your computer's IP
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.0.104:3000";
 
 export default function SignupScreen() {
   const router = useRouter();

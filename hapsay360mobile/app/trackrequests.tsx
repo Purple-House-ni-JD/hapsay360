@@ -20,7 +20,7 @@ import { X } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.0.104:3000";
 
 export default function TrackRequests() {
   const router = useRouter();

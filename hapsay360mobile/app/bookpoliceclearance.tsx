@@ -49,7 +49,7 @@ const timeSlots = {
 
 export default function BookingPoliceClearance() {
   const router = useRouter();
-  const API_BASE = "http://192.168.1.6:3000/api";
+  const API_BASE = "http://192.168.0.104:3000/api";
 
   const [loading, setLoading] = useState(false);
   const [purpose, setPurpose] = useState("");
@@ -82,7 +82,7 @@ export default function BookingPoliceClearance() {
     try {
       setLoadingStations(true);
       const token = await getAuthToken();
-      const res = await fetch(`${API_BASE}/police-stations`, {
+      const res = await fetch(`${API_BASE}/police-stations/getStations`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();

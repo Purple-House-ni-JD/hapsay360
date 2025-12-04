@@ -11,7 +11,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import GradientHeader from "./components/GradientHeader";
 
-const API_BASE = "http://192.168.1.6:3000";
 export default function ReporterInfo() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -20,27 +19,27 @@ export default function ReporterInfo() {
   const [loading, setLoading] = useState(false);
 
   const handleNext = () => {
-    // Validation
     if (!fullName || !contactNumber || !address) {
       Alert.alert("Error", "Please fill out all fields before proceeding.");
       return;
     }
 
-    // Basic contact number validation
     if (contactNumber.length < 10) {
       Alert.alert("Error", "Please enter a valid contact number.");
       return;
     }
 
-    // Navigate to incident details with reporter info
     router.push(
-      `/incidentdetails?reporterName=${encodeURIComponent(fullName)}&reporterContact=${encodeURIComponent(contactNumber)}&location=${encodeURIComponent(address)}`
+      `/incidentdetails?reporterName=${encodeURIComponent(
+        fullName
+      )}&reporterContact=${encodeURIComponent(
+        contactNumber
+      )}&reporterAddress=${encodeURIComponent(address)}`
     );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
-      {/* Keep your GradientHeader */}
       <GradientHeader title="File Blotter" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -48,7 +47,6 @@ export default function ReporterInfo() {
           Reporter's Information
         </Text>
 
-        {/* Full Name */}
         <View className="mb-4">
           <Text className="text-gray-700 mb-1">Full Name</Text>
           <TextInput
@@ -60,7 +58,6 @@ export default function ReporterInfo() {
           />
         </View>
 
-        {/* Contact Number */}
         <View className="mb-4">
           <Text className="text-gray-700 mb-1">Contact Number</Text>
           <TextInput
@@ -73,13 +70,12 @@ export default function ReporterInfo() {
           />
         </View>
 
-        {/* Address */}
         <View className="mb-4">
           <Text className="text-gray-700 mb-1">Home Address</Text>
           <TextInput
             value={address}
             onChangeText={setAddress}
-            placeholder="Enter your address"
+            placeholder="Enter your home address"
             multiline
             className="border border-gray-300 rounded-lg px-3 py-3 text-gray-900"
             style={{ backgroundColor: "#DEEBF8" }}
@@ -91,9 +87,7 @@ export default function ReporterInfo() {
           disabled={loading}
           className="bg-indigo-600 rounded-xl py-4 mt-4"
         >
-          <Text className="text-white text-center font-semibold">
-            {loading ? "Saving..." : "Next"}
-          </Text>
+          <Text className="text-white text-center font-semibold">Next</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -15,7 +16,14 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { Shield } from "lucide-react-native";
+import {
+  Shield,
+  Calendar,
+  Clock,
+  Camera,
+  Video,
+  FileText,
+} from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -26,20 +34,24 @@ export default function IncidentDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  // Get reporter info from navigation params
   const reporterName = params.reporterName || "";
   const reporterContact = params.reporterContact || "";
-  const reporterAddress = params.location || "";
+  const reporterAddress = params.reporterAddress || "";
 
+  // States
   const [incidentType, setIncidentType] = useState("Theft");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
 
+  // Date/Time State
+  const [selectedDateObj, setSelectedDateObj] = useState(new Date());
+
+  // Location States
   const [incidentLocation, setIncidentLocation] = useState({
     latitude: 8.4542,
     longitude: 124.6319,
   });
+  const [incidentSpecificAddress, setIncidentSpecificAddress] =
+    useState(reporterAddress);
   const [userLocation, setUserLocation] = useState(null);
   const [description, setDescription] = useState("");
   const [locationLoaded, setLocationLoaded] = useState(false);
@@ -49,111 +61,70 @@ export default function IncidentDetails() {
     videos: [],
     documents: [],
   });
+  const MAX_ATTACHMENTS = 5;
 
-  //Date and time picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-
-  const MAX_ATTACHMENTS = 5;
-  const handleDateChange = (event, selected) => {
-    if (event.type === "dismissed") {
-      setShowDatePicker(false);
-      return;
-    }
-
-    setShowDatePicker(false);
-
-    if (selected) {
-      setSelectedDate(selected);
-
-      const formatted =
-        ("0" + selected.getDate()).slice(-2) +
-        "-" +
-        ("0" + (selected.getMonth() + 1)).slice(-2) +
-        "-" +
-        selected.getFullYear();
-
-      setDate(formatted);
-    }
-  };
-
-  const handleTimeChange = (event, selected) => {
-    if (event.type === "dismissed") {
-      setShowTimePicker(false);
-      return;
-    }
-
-    setShowTimePicker(false);
-
-    if (selected) {
-      const hours = selected.getHours();
-      const minutes = selected.getMinutes();
-      const ampm = hours >= 12 ? "PM" : "AM";
-      const formattedTime =
-        ((hours + 11) % 12) + 1 + ":" + ("0" + minutes).slice(-2) + " " + ampm;
-
-      setTime(formattedTime);
-    }
-  };
-
-  const policeStations = [
-    {
-      id: 1,
-      name: "Police Station 1 (Centro)",
-      latitude: 8.4829,
-      longitude: 124.6503,
-      address: "Corrales Avenue, Centro, Cagayan de Oro City",
-    },
-    {
-      id: 2,
-      name: "Police Station 2 (Carmen)",
-      latitude: 8.4947,
-      longitude: 124.6419,
-      address: "Carmen, Cagayan de Oro City",
-    },
-    {
-      id: 3,
-      name: "Police Station 3 (Lapasan)",
-      latitude: 8.5089,
-      longitude: 124.6247,
-      address: "Lapasan, Cagayan de Oro City",
-    },
-    {
-      id: 4,
-      name: "Police Station 4 (Nazareth)",
-      latitude: 8.4589,
-      longitude: 124.6278,
-      address: "Nazareth, Cagayan de Oro City",
-    },
-    {
-      id: 5,
-      name: "Police Station 5 (Gusa)",
-      latitude: 8.4831,
-      longitude: 124.6108,
-      address: "Gusa, Cagayan de Oro City",
-    },
-    {
-      id: 6,
-      name: "Police Station 6 (Kauswagan)",
-      latitude: 8.4503,
-      longitude: 124.6186,
-      address: "Kauswagan, Cagayan de Oro City",
-    },
-    {
-      id: 7,
-      name: "Police Station 7 (Bulua)",
-      latitude: 8.517,
-      longitude: 124.647,
-      address: "Bulua, Cagayan de Oro City",
-    },
-  ];
-
+  const [policeStations, setPoliceStations] = useState([]);
+  const [stationsLoaded, setStationsLoaded] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [stationDistance, setStationDistance] = useState(null);
   const [stationTime, setStationTime] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // --- HELPER: FORMAT DATE DISPLAY ---
+  const formatDateDisplay = (date) => {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // --- HELPER: FORMAT TIME DISPLAY ---
+  const formatTimeDisplay = (date) => {
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  useEffect(() => {
+    const fetchPoliceStations = async () => {
+      try {
+        const token = await AsyncStorage.getItem("authToken");
+        const response = await fetch(
+          `${API_BASE}/api/police-stations/getStations`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        const data = await response.json();
+
+        if (data.success) {
+          const mappedStations = data.data.map((station) => ({
+            id: station._id,
+            name: station.name,
+            address: station.address,
+            latitude: parseFloat(station.location.latitude),
+            longitude: parseFloat(station.location.longitude),
+            contact: station.contact,
+          }));
+
+          setPoliceStations(mappedStations);
+          setStationsLoaded(true);
+        }
+      } catch (error) {
+        console.error("Error fetching stations:", error);
+        setStationsLoaded(true);
+      }
+    };
+
+    fetchPoliceStations();
+  }, []);
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -170,7 +141,8 @@ export default function IncidentDetails() {
   };
 
   const findNearestStation = () => {
-    if (!locationLoaded) return;
+    if (!locationLoaded || !stationsLoaded || policeStations.length === 0)
+      return;
 
     let nearest = policeStations[0];
     let minDistance = calculateDistance(
@@ -204,10 +176,7 @@ export default function IncidentDetails() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          Alert.alert(
-            "Permission Denied",
-            "Location permission is required to show your current position."
-          );
+          Alert.alert("Permission Denied", "Location permission is required.");
           return;
         }
         const currentLocation = await Location.getCurrentPositionAsync({});
@@ -226,27 +195,55 @@ export default function IncidentDetails() {
   }, []);
 
   useEffect(() => {
-    if (locationLoaded) {
+    if (locationLoaded && stationsLoaded) {
       findNearestStation();
     }
-  }, [locationLoaded]);
+  }, [locationLoaded, stationsLoaded]);
 
+  // --- PICKER HANDLERS ---
+  const handleDateChange = (event, selected) => {
+    if (event.type === "dismissed") {
+      setShowDatePicker(false);
+      return;
+    }
+    setShowDatePicker(false);
+    if (selected) {
+      const newDate = new Date(selectedDateObj);
+      newDate.setFullYear(
+        selected.getFullYear(),
+        selected.getMonth(),
+        selected.getDate()
+      );
+      setSelectedDateObj(newDate);
+    }
+  };
+
+  const handleTimeChange = (event, selected) => {
+    if (event.type === "dismissed") {
+      setShowTimePicker(false);
+      return;
+    }
+    setShowTimePicker(false);
+    if (selected) {
+      const newDate = new Date(selectedDateObj);
+      newDate.setHours(selected.getHours(), selected.getMinutes());
+      setSelectedDateObj(newDate);
+    }
+  };
+
+  // --- ATTACHMENTS ---
   const requestCameraPermissions = async () => {
     const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
     const mediaLibraryStatus =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (cameraStatus.status !== "granted") {
+    if (
+      cameraStatus.status !== "granted" ||
+      mediaLibraryStatus.status !== "granted"
+    ) {
       Alert.alert(
         "Permission Denied",
-        "Camera permission is required to take photos or videos."
-      );
-      return false;
-    }
-    if (mediaLibraryStatus.status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Media library permission is required to select photos or videos."
+        "Camera/Media permissions are required."
       );
       return false;
     }
@@ -254,75 +251,53 @@ export default function IncidentDetails() {
   };
 
   const handlePhotoUpload = async (fromCamera = false) => {
-    if (attachments.photos.length >= MAX_ATTACHMENTS) {
-      Alert.alert("Limit Reached", "You can upload a maximum of 5 photos.");
-      return;
-    }
-    const hasPermission = await requestCameraPermissions();
-    if (!hasPermission) return;
+    if (attachments.photos.length >= MAX_ATTACHMENTS) return;
+    if (!(await requestCameraPermissions())) return;
 
-    try {
-      const result = fromCamera
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: "Images",
-            quality: 0.7,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: "Images",
-            quality: 0.7,
-          });
-      if (!result.canceled) {
-        setAttachments((prev) => ({
-          ...prev,
-          photos: [...prev.photos, result.assets[0].uri],
-        }));
-      }
-    } catch (error) {
-      console.error(error);
+    let result = fromCamera
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: "Images",
+          quality: 0.7,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: "Images",
+          quality: 0.7,
+        });
+
+    if (!result.canceled) {
+      setAttachments((prev) => ({
+        ...prev,
+        photos: [...prev.photos, result.assets[0].uri],
+      }));
     }
   };
 
   const handleVideoUpload = async (fromCamera = false) => {
-    if (attachments.videos.length >= MAX_ATTACHMENTS) {
-      Alert.alert("Limit Reached", "You can upload a maximum of 5 videos.");
-      return;
-    }
-    const hasPermission = await requestCameraPermissions();
-    if (!hasPermission) return;
+    if (attachments.videos.length >= MAX_ATTACHMENTS) return;
+    if (!(await requestCameraPermissions())) return;
 
-    try {
-      const result = fromCamera
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: "Videos",
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: "Videos",
-          });
-      if (!result.canceled) {
-        setAttachments((prev) => ({
-          ...prev,
-          videos: [...prev.videos, result.assets[0].uri],
-        }));
-      }
-    } catch (error) {
-      console.error(error);
+    let result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: "Videos" })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: "Videos" });
+
+    if (!result.canceled) {
+      setAttachments((prev) => ({
+        ...prev,
+        videos: [...prev.videos, result.assets[0].uri],
+      }));
     }
   };
 
   const handleDocumentUpload = async () => {
-    if (attachments.documents.length >= MAX_ATTACHMENTS) {
-      Alert.alert("Limit Reached", "You can upload a maximum of 5 documents.");
-      return;
-    }
+    if (attachments.documents.length >= MAX_ATTACHMENTS) return;
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: "*/*" });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const document = result.assets[0];
         setAttachments((prev) => ({
           ...prev,
           documents: [
             ...prev.documents,
-            { uri: document.uri, name: document.name },
+            { uri: result.assets[0].uri, name: result.assets[0].name },
           ],
         }));
       }
@@ -333,48 +308,27 @@ export default function IncidentDetails() {
 
   const showUploadOptions = (type) => {
     const buttons = [];
-
     if (type === "photo") {
       buttons.push(
-        {
-          text: "Use Camera",
-          onPress: () => handlePhotoUpload(true),
-        },
-        {
-          text: "Browse Files",
-          onPress: () => handlePhotoUpload(false),
-        }
+        { text: "Camera", onPress: () => handlePhotoUpload(true) },
+        { text: "Gallery", onPress: () => handlePhotoUpload(false) }
       );
     } else if (type === "video") {
       buttons.push(
-        {
-          text: "Use Camera",
-          onPress: () => handleVideoUpload(true),
-        },
-        {
-          text: "Browse Files",
-          onPress: () => handleVideoUpload(false),
-        }
+        { text: "Camera", onPress: () => handleVideoUpload(true) },
+        { text: "Gallery", onPress: () => handleVideoUpload(false) }
       );
     } else if (type === "document") {
-      buttons.push({
-        text: "Browse Files",
-        onPress: () => handleDocumentUpload(),
-      });
+      buttons.push({ text: "Files", onPress: () => handleDocumentUpload() });
     }
-
     buttons.push({ text: "Cancel", style: "cancel" });
-
-    Alert.alert(
-      `Upload ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      "Choose an option",
-      buttons
-    );
+    Alert.alert("Upload", "Choose option", buttons);
   };
 
+  // --- SUBMIT ---
   const handleSubmit = async () => {
-    // Validation
-    if (!incidentType || !date || !time || !description) {
+    // 1. Validation
+    if (!incidentType || !description) {
       Alert.alert("Error", "Please fill out all required fields.");
       return;
     }
@@ -389,51 +343,55 @@ export default function IncidentDetails() {
 
     setSubmitting(true);
     try {
-      // Get auth token
       const token = await AsyncStorage.getItem("authToken");
-      if (!token) {
+      const userId = await AsyncStorage.getItem("userId");
+
+      if (!token || !userId) {
         Alert.alert("Error", "Please login first");
         return;
       }
 
-      // Prepare blotter data matching your Blotter model
+      // --- CRITICAL FIX: TRANSFORM ATTACHMENTS ---
+      // Combine photos, videos, and docs into one list for the backend
+      const formattedAttachments = [
+        ...attachments.photos.map((uri) => ({
+          type: "photo",
+          url: uri,
+          name: "photo.jpg",
+        })),
+        ...attachments.videos.map((uri) => ({
+          type: "video",
+          url: uri,
+          name: "video.mp4",
+        })),
+        ...attachments.documents.map((doc) => ({
+          type: "document",
+          url: doc.uri,
+          name: doc.name,
+        })),
+      ];
+
+      // Prepare Strings for Display
+      const dateString = formatDateDisplay(selectedDateObj);
+      const timeString = formatTimeDisplay(selectedDateObj);
+
       const blotterData = {
-        reporter: {
-          fullName: reporterName,
-          contactNumber: reporterContact,
-          address: reporterAddress,
-        },
-        incident: {
-          type: incidentType,
-          date: date,
-          time: time,
-          location: {
-            latitude: incidentLocation.latitude,
-            longitude: incidentLocation.longitude,
-            address: reporterAddress, // or get from reverse geocoding
-          },
-          description: description,
-        },
-        attachments: {
-          photos: attachments.photos,
-          videos: attachments.videos,
-          documents: attachments.documents.map((doc) => ({
-            name: doc.name,
-            url: doc.uri,
-          })),
-        },
-        policeStation: {
-          id: selectedStation.id,
-          name: selectedStation.name,
-          address: selectedStation.address,
-          latitude: selectedStation.latitude,
-          longitude: selectedStation.longitude,
-          distance: parseFloat(stationDistance),
-          estimatedTime: stationTime,
-        },
+        userId: userId,
+        incidentType,
+        incidentDate: selectedDateObj,
+        incidentTime: timeString,
+        incidentDescription: description,
+        latitude: incidentLocation.latitude,
+        longitude: incidentLocation.longitude,
+        address: incidentSpecificAddress || reporterAddress,
+        reporterName,
+        reporterContact,
+        reporterAddress,
+        // PASS THE FORMATTED ATTACHMENTS HERE
+        attachments: formattedAttachments,
       };
 
-      const response = await fetch(`${API_BASE}/api/blotter/submit`, {
+      const response = await fetch(`${API_BASE}/api/blotters/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -448,20 +406,19 @@ export default function IncidentDetails() {
         throw new Error(data.message || "Failed to submit blotter");
       }
 
-      // Navigate to confirmation with the saved blotter data
       router.push({
         pathname: "/submitincident",
         params: {
-          blotterNumber: data.blotter.blotterNumber,
+          blotterNumber: data.data.blotterNumber,
           incidentType: incidentType,
-          date: date,
-          time: time,
+          date: dateString,
+          time: timeString,
           description: description,
-          location: reporterAddress,
-          stationName: selectedStation.name,
+          location: incidentSpecificAddress || reporterAddress,
+          status: "Pending",
           reporterName: reporterName,
           reporterContact: reporterContact,
-          status: data.blotter.status,
+          stationName: selectedStation.name,
         },
       });
     } catch (error) {
@@ -482,67 +439,84 @@ export default function IncidentDetails() {
           </Text>
         </View>
 
-        {/* Incident Type Dropdown */}
+        {/* Incident Type */}
         <Text className="mb-2 text-gray-700 font-medium">Incident Type</Text>
         <TouchableOpacity
           onPress={() => setDropdownOpen(!dropdownOpen)}
-          className="border border-gray-300 rounded-lg px-3 py-2 mb-2 bg-white flex-row justify-between items-center"
+          className="border border-gray-300 rounded-lg px-3 py-3 mb-6 bg-white flex-row justify-between items-center"
         >
-          <Text>{incidentType}</Text>
-          <Text style={{ fontSize: 16 }}>▼</Text>
+          <Text className="text-gray-800 text-base">{incidentType}</Text>
+          <Text>▼</Text>
         </TouchableOpacity>
         {dropdownOpen && (
-          <View className="border border-gray-300 rounded-lg mb-4 bg-white">
-            {["Theft", "Assault", "Accident", "Other"].map((type) => (
-              <TouchableOpacity
-                key={type}
-                onPress={() => {
-                  setIncidentType(type);
-                  setDropdownOpen(false);
-                }}
-                className="px-3 py-2 hover:bg-gray-100"
-              >
-                <Text>{type}</Text>
-              </TouchableOpacity>
-            ))}
+          <View className="border border-gray-300 rounded-lg mb-6 bg-white">
+            {["Theft", "Robbery", "Assault", "Accident", "Other"].map(
+              (type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => {
+                    setIncidentType(type);
+                    setDropdownOpen(false);
+                  }}
+                  className="px-3 py-3 border-b border-gray-100"
+                >
+                  <Text className="text-gray-700">{type}</Text>
+                </TouchableOpacity>
+              )
+            )}
           </View>
         )}
 
         {/* Date & Time */}
-        <Text className="mb-2 text-gray-700 font-medium">Date of Incident</Text>
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
-          className="border border-gray-300 rounded-lg px-3 py-2 mb-4 bg-white"
-        >
-          <Text className="text-gray-900">{date || "Pick a date"}</Text>
-        </TouchableOpacity>
+        <View className="flex-row gap-4 mb-6">
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-4 active:bg-blue-50"
+          >
+            <View className="flex-row items-center mb-1">
+              <Calendar size={18} color="#4f46e5" />
+              <Text className="text-gray-500 text-xs ml-2 font-medium uppercase">
+                Date
+              </Text>
+            </View>
+            <Text className="text-gray-900 text-lg font-bold">
+              {formatDateDisplay(selectedDateObj)}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowTimePicker(true)}
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-4 active:bg-blue-50"
+          >
+            <View className="flex-row items-center mb-1">
+              <Clock size={18} color="#4f46e5" />
+              <Text className="text-gray-500 text-xs ml-2 font-medium uppercase">
+                Time
+              </Text>
+            </View>
+            <Text className="text-gray-900 text-lg font-bold">
+              {formatTimeDisplay(selectedDateObj)}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {showDatePicker && (
           <DateTimePicker
-            value={selectedDate}
+            value={selectedDateObj}
             mode="date"
             display="default"
             onChange={handleDateChange}
           />
         )}
-
-        {/* Time */}
-        <Text className="mb-2 text-gray-700 font-medium">Time of Incident</Text>
-        <TouchableOpacity
-          onPress={() => setShowTimePicker(true)}
-          className="border border-gray-300 rounded-lg px-3 py-2 mb-4 bg-white"
-        >
-          <Text className="text-gray-900">{time || "Pick a time"}</Text>
-        </TouchableOpacity>
-
         {showTimePicker && (
           <DateTimePicker
-            value={selectedDate}
+            value={selectedDateObj}
             mode="time"
             display="default"
             onChange={handleTimeChange}
           />
         )}
+
         {/* Location Map */}
         <Text className="mb-2 text-gray-700 font-medium">
           Incident Location (Drag to adjust)
@@ -624,7 +598,7 @@ export default function IncidentDetails() {
           </TouchableOpacity>
         </View>
 
-        {/* Uploaded Attachments Display */}
+        {/* Attachments List */}
         {attachments.photos.length > 0 && (
           <View className="mb-4">
             <Text className="text-gray-600 font-medium mb-2">Photos</Text>
@@ -648,172 +622,100 @@ export default function IncidentDetails() {
           </View>
         )}
 
-        {attachments.videos.length > 0 && (
-          <View className="mb-4">
-            <Text className="text-gray-600 font-medium mb-2">Videos</Text>
-            <FlatList
-              horizontal
-              data={attachments.videos}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <View
-                  className="bg-gray-100 px-3 py-2 mr-2 rounded-lg items-center justify-center"
-                  style={{ minWidth: 100 }}
-                >
-                  <Text className="text-blue-600 underline">
-                    {item.split("/").pop()}
-                  </Text>
-                </View>
-              )}
-              showsHorizontalScrollIndicator={false}
-            />
-          </View>
-        )}
-
-        {attachments.documents.length > 0 && (
-          <View className="mb-6">
-            <Text className="text-gray-600 font-medium mb-2">Documents</Text>
-            {attachments.documents.map((item, index) => (
-              <View
-                key={index}
-                className="bg-gray-100 px-3 py-2 mb-2 rounded-lg"
-              >
-                <Text className="text-blue-600 underline">{item.name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Select Police Station */}
+        {/* Police Station Select */}
         <Text className="mb-2 text-gray-700 font-medium text-lg">
           Select Police Station
         </Text>
-
-        {selectedStation && (
+        {!stationsLoaded ? (
+          <View className="py-4 items-center">
+            <ActivityIndicator size="small" color="#4f46e5" />
+            <Text className="text-gray-500">Loading stations...</Text>
+          </View>
+        ) : selectedStation ? (
           <View className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <View className="flex-row items-start mb-3">
-              <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mr-3">
-                <View className="w-10 h-10 bg-blue-900 rounded-full items-center justify-center">
-                  <Shield size={20} color="white" />
-                </View>
+            <View className="flex-row items-center mb-2">
+              <View className="w-10 h-10 bg-blue-900 rounded-full items-center justify-center mr-3">
+                <Shield size={20} color="white" />
               </View>
-              <View className="flex-1">
-                <Text className="text-base font-bold text-gray-900 mb-1">
-                  {selectedStation.name}
-                </Text>
-                <Text className="text-sm text-gray-600">
-                  {selectedStation.address}
-                </Text>
+              <View>
+                <Text className="font-bold">{selectedStation.name}</Text>
+                <Text className="text-xs">{selectedStation.address}</Text>
               </View>
             </View>
-
-            <View className="flex-row justify-between border-t border-blue-200 pt-3">
-              <View className="flex-1">
-                <Text className="text-xs text-gray-500 mb-1">
-                  Estimated time
-                </Text>
-                <Text className="text-sm font-semibold text-gray-900">
-                  {stationTime} mins
-                </Text>
-              </View>
-              <View className="flex-1 items-end">
-                <Text className="text-xs text-gray-500 mb-1">Distance</Text>
-                <Text className="text-sm font-semibold text-gray-900">
-                  {stationDistance} km
-                </Text>
-              </View>
+            <View className="flex-row justify-between border-t border-blue-200 pt-2">
+              <Text className="text-xs">Est: {stationTime} mins</Text>
+              <Text className="text-xs">Dist: {stationDistance} km</Text>
             </View>
           </View>
+        ) : (
+          <Text className="text-gray-500 italic mb-4">No stations found.</Text>
         )}
 
-        {/* Police Station Map */}
-        <View className="h-80 mb-4 rounded-xl overflow-hidden">
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ flex: 1 }}
-            region={{
-              latitude: incidentLocation.latitude,
-              longitude: incidentLocation.longitude,
-              latitudeDelta: 0.15,
-              longitudeDelta: 0.15,
-            }}
-            showsUserLocation
-            showsMyLocationButton
-          >
-            {userLocation && (
-              <Marker
-                coordinate={userLocation}
-                title="Your Current Location"
-                description="You are here"
-              >
-                <View className="items-center">
-                  <View className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center shadow-lg border-4 border-white">
-                    <View className="w-2 h-2 bg-white rounded-full" />
-                  </View>
-                </View>
-              </Marker>
-            )}
-
-            <Marker
-              coordinate={incidentLocation}
-              title="Incident Location"
-              description="Location of the incident"
+        {/* Stations Map */}
+        {stationsLoaded && (
+          <View className="h-80 mb-4 rounded-xl overflow-hidden">
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={{ flex: 1 }}
+              region={{
+                latitude: incidentLocation.latitude,
+                longitude: incidentLocation.longitude,
+                latitudeDelta: 0.1,
+                longitudeDelta: 0.1,
+              }}
+              showsUserLocation
             >
-              <View className="items-center">
-                <View className="bg-red-600 w-12 h-12 rounded-full items-center justify-center shadow-lg border-4 border-white">
-                  <View className="w-3 h-3 bg-white rounded-full" />
-                </View>
-              </View>
-            </Marker>
-
-            {policeStations.map((station) => (
-              <Marker
-                key={station.id}
-                coordinate={{
-                  latitude: station.latitude,
-                  longitude: station.longitude,
-                }}
-                title={station.name}
-                description={station.address}
-                onPress={() => {
-                  setSelectedStation(station);
-                  const dist = calculateDistance(
-                    incidentLocation.latitude,
-                    incidentLocation.longitude,
-                    station.latitude,
-                    station.longitude
-                  );
-                  setStationDistance(dist.toFixed(1));
-                  const estimatedTime = Math.round((dist / 30) * 60);
-                  setStationTime(estimatedTime);
-                }}
-              >
+              <Marker coordinate={incidentLocation} title="Incident">
                 <View className="items-center">
-                  <View
-                    className={`w-14 h-14 rounded-full items-center justify-center shadow-lg border-4 border-white ${
-                      selectedStation?.id === station.id
-                        ? "bg-blue-900"
-                        : "bg-gray-600"
-                    }`}
-                  >
-                    <Shield size={24} color="white" />
-                  </View>
+                  <View className="bg-red-600 w-10 h-10 rounded-full items-center justify-center shadow-lg border-2 border-white" />
                 </View>
               </Marker>
-            ))}
-          </MapView>
-        </View>
+              {policeStations.map((station) => (
+                <Marker
+                  key={station.id}
+                  coordinate={{
+                    latitude: station.latitude,
+                    longitude: station.longitude,
+                  }}
+                  title={station.name}
+                  onPress={() => {
+                    setSelectedStation(station);
+                    const dist = calculateDistance(
+                      incidentLocation.latitude,
+                      incidentLocation.longitude,
+                      station.latitude,
+                      station.longitude
+                    );
+                    setStationDistance(dist.toFixed(1));
+                    setStationTime(Math.round((dist / 30) * 60));
+                  }}
+                >
+                  <View className="items-center">
+                    <View
+                      className={`w-8 h-8 rounded-full items-center justify-center border-2 border-white ${
+                        selectedStation?.id === station.id
+                          ? "bg-blue-900"
+                          : "bg-gray-600"
+                      }`}
+                    >
+                      <Shield size={14} color="white" />
+                    </View>
+                  </View>
+                </Marker>
+              ))}
+            </MapView>
+          </View>
+        )}
 
         <TouchableOpacity
           onPress={findNearestStation}
           className="bg-white border-2 border-indigo-600 rounded-xl py-3 mb-6"
         >
-          <Text className="text-indigo-600 text-center font-semibold text-base">
+          <Text className="text-indigo-600 text-center font-semibold">
             Find Nearest Station
           </Text>
         </TouchableOpacity>
 
-        {/* Submit Button */}
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={submitting}

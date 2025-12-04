@@ -116,22 +116,6 @@ export default function Settings() {
             textColor="#DC2626"
             onPress={() => alert("Delete Account")}
           />
-
-          <MenuItem
-            icon="log-out-outline"
-            title="Log Out"
-            textColor="#DC2626"
-            onPress={() => {
-              Alert.alert("Log Out", "Are you sure you want to log out?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Log Out",
-                  style: "destructive",
-                  onPress: () => router.replace("/logout"),
-                },
-              ]);
-            }}
-          />
         </View>
       </ScrollView>
 

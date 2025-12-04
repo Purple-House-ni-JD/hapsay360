@@ -289,64 +289,52 @@ export default function ApplicationForm() {
       const data = await res.json();
       const p = data.profile || {};
 
-      if (p.personal_info?.given_name) {
+      if (p.personal_info?.givenName) {
         setHasExistingProfile(true);
 
-        // Map personal_info
-        setGivenName(p.personal_info?.given_name || "");
-        setMiddleName(p.personal_info?.middle_name || "");
+        // Personal info
+        setGivenName(p.personal_info?.givenName || "");
+        setMiddleName(p.personal_info?.middleName || "");
         setSurname(p.personal_info?.surname || "");
         setQualifier(p.personal_info?.qualifier || "");
         setSex(p.personal_info?.sex || "");
-        setCivilStatus(p.personal_info?.civil_status || "");
-        setBirthdate(formatDateToLocal(p.personal_info?.birthday || ""));
-        setIsPWD(p.personal_info?.pwd || false);
-        setIsFirstTimeJobSeeker(
-          p.personal_info?.first_time_job_seeker || false
-        );
+        setCivilStatus(p.personal_info?.civilStatus || "");
+        setBirthdate(formatDateToLocal(p.personal_info?.birthdate || ""));
+        setIsPWD(p.personal_info?.isPWD || false);
+        setIsFirstTimeJobSeeker(p.personal_info?.isFirstTimeJobSeeker || false);
         setNationality(p.personal_info?.nationality || "");
-        setBirthPlace(p.personal_info?.birth_place || "");
-        setOtherCountry(p.personal_info?.other_country || "");
+        setBirthPlace(p.personal_info?.birthPlace || "");
+        setOtherCountry(p.personal_info?.otherCountry || "");
 
-        // Map address
-        setHouseNo(p.address?.house_no || "");
+        // Address
+        setHouseNo(p.address?.houseNo || "");
         setStreet(p.address?.street || "");
         setCity(p.address?.city || "");
         setBarangay(p.address?.barangay || "");
         setProvince(p.address?.province || "");
-        setPostalCode(p.address?.postal_code || "");
+        setPostalCode(p.address?.postalCode || "");
         setCountry(p.address?.country || "");
         setEmail(p.address?.email || "");
         setMobile(p.address?.mobile || "");
         setTelephone(p.address?.telephone || "");
 
-        // Map other_info
-        setHeight(p.other_info?.height || "");
-        setWeight(p.other_info?.weight || "");
-        setComplexion(p.other_info?.complexion || "");
-        setIdentifyingMarks(p.other_info?.identifying_marks || "");
-        setBloodType(p.other_info?.blood_type || "");
-        setReligion(p.other_info?.religion || "");
-        setEducation(p.other_info?.education || "");
-        setOccupation(p.other_info?.occupation || "");
-
-        // Map family
-        setFatherGiven(p.family?.father?.given_name || "");
-        setFatherMiddle(p.family?.father?.middle_name || "");
+        // Family
+        setFatherGiven(p.family?.father?.given || "");
+        setFatherMiddle(p.family?.father?.middle || "");
         setFatherSurname(p.family?.father?.surname || "");
         setFatherQualifier(p.family?.father?.qualifier || "");
-        setFatherBirthPlace(p.family?.father?.birth_place || "");
-        setFatherOtherCountry(p.family?.father?.other_country || "");
+        setFatherBirthPlace(p.family?.father?.birthPlace || "");
+        setFatherOtherCountry(p.family?.father?.otherCountry || "");
 
-        setMotherGiven(p.family?.mother?.given_name || "");
-        setMotherMiddle(p.family?.mother?.middle_name || "");
+        setMotherGiven(p.family?.mother?.given || "");
+        setMotherMiddle(p.family?.mother?.middle || "");
         setMotherSurname(p.family?.mother?.surname || "");
         setMotherQualifier(p.family?.mother?.qualifier || "");
-        setMotherBirthPlace(p.family?.mother?.birth_place || "");
-        setMotherOtherCountry(p.family?.mother?.other_country || "");
+        setMotherBirthPlace(p.family?.mother?.birthPlace || "");
+        setMotherOtherCountry(p.family?.mother?.otherCountry || "");
 
-        setSpouseGiven(p.family?.spouse?.given_name || "");
-        setSpouseMiddle(p.family?.spouse?.middle_name || "");
+        setSpouseGiven(p.family?.spouse?.given || "");
+        setSpouseMiddle(p.family?.spouse?.middle || "");
         setSpouseSurname(p.family?.spouse?.surname || "");
         setSpouseQualifier(p.family?.spouse?.qualifier || "");
       } else {

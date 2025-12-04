@@ -379,17 +379,18 @@ export default function ApplicationForm() {
         nationality: nationality,
       },
       address: {
-        house_no: houseNo,
+        houseNo: houseNo,
         street: street,
         city: city,
         barangay: barangay,
         province: province,
-        postal_code: postalCode,
+        postalCode: postalCode,
         country: country,
         email: email,
         mobile: mobile,
         telephone: telephone,
       },
+
       // Fields only for ApplicationProfile
       other_info: {
         height: height,

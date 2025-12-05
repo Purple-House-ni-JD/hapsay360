@@ -19,7 +19,7 @@ import { ChevronDown, CreditCard, Trash2 } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
 
-const API_BASE = "http://192.168.0.104:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function Payments() {
   const router = useRouter();

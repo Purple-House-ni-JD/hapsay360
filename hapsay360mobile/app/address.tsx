@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "./components/GradientHeader";
 
-const API_BASE = "http://192.168.0.104:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function Addresses() {
   const router = useRouter();

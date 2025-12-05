@@ -325,7 +325,7 @@ export default function IncidentDetails() {
     Alert.alert("Upload", "Choose option", buttons);
   };
 
-  // --- SUBMIT ---
+  // --- UPDATED SUBMIT FUNCTION ---
   const handleSubmit = async () => {
     // 1. Validation
     if (!incidentType || !description) {
@@ -351,25 +351,74 @@ export default function IncidentDetails() {
         return;
       }
 
-      // --- CRITICAL FIX: TRANSFORM ATTACHMENTS ---
-      // Combine photos, videos, and docs into one list for the backend
-      const formattedAttachments = [
-        ...attachments.photos.map((uri) => ({
-          type: "photo",
-          url: uri,
-          name: "photo.jpg",
-        })),
-        ...attachments.videos.map((uri) => ({
-          type: "video",
-          url: uri,
-          name: "video.mp4",
-        })),
-        ...attachments.documents.map((doc) => ({
-          type: "document",
-          url: doc.uri,
-          name: doc.name,
-        })),
-      ];
+      // --- HELPER: Convert File to Base64 ---
+      const convertToBase64 = async (uri) => {
+        try {
+          // 1. Fetch the file uri
+          const response = await fetch(uri);
+
+          // 2. Get the blob (binary data)
+          const blob = await response.blob();
+
+          // 3. Convert blob to Base64 using FileReader
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              // reader.result returns "data:image/jpeg;base64,....."
+              // We split it to get ONLY the raw base64 string
+              const base64data = reader.result.split(",")[1];
+              resolve(base64data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          console.error("Conversion error", e);
+          return null;
+        }
+      };
+      // --- PREPARE ATTACHMENTS ---
+      const processedAttachments = [];
+
+      // Process Photos
+      for (const uri of attachments.photos) {
+        const base64Data = await convertToBase64(uri);
+        if (base64Data) {
+          processedAttachments.push({
+            filename: `photo_${Date.now()}.jpg`,
+            mimetype: "image/jpeg",
+            // This 'data' field is what the backend expects!
+            data: `data:image/jpeg;base64,${base64Data}`,
+            size: base64Data.length * 0.75,
+          });
+        }
+      }
+
+      // Process Videos (Caution: Large videos might be slow)
+      for (const uri of attachments.videos) {
+        const base64Data = await convertToBase64(uri);
+        if (base64Data) {
+          processedAttachments.push({
+            filename: `video_${Date.now()}.mp4`,
+            mimetype: "video/mp4",
+            data: `data:video/mp4;base64,${base64Data}`,
+            size: base64Data.length * 0.75,
+          });
+        }
+      }
+
+      // Process Documents
+      for (const doc of attachments.documents) {
+        const base64Data = await convertToBase64(doc.uri);
+        if (base64Data) {
+          processedAttachments.push({
+            filename: doc.name || `doc_${Date.now()}`,
+            mimetype: "application/pdf",
+            data: `data:application/pdf;base64,${base64Data}`,
+            size: base64Data.length * 0.75,
+          });
+        }
+      }
 
       // Prepare Strings for Display
       const dateString = formatDateDisplay(selectedDateObj);
@@ -387,8 +436,8 @@ export default function IncidentDetails() {
         reporterName,
         reporterContact,
         reporterAddress,
-        // PASS THE FORMATTED ATTACHMENTS HERE
-        attachments: formattedAttachments,
+        officerId: null,
+        attachments: processedAttachments, // <--- SENDING THE CONVERTED DATA
       };
 
       const response = await fetch(`${API_BASE}/api/blotters/create`, {

@@ -45,14 +45,14 @@ export default function AddPayment() {
   ];
 
   // Format card number with spaces
-  const formatCardNumber = (text) => {
+  const formatCardNumber = (text: string) => {
     const cleaned = text.replace(/\s/g, "");
     const chunks = cleaned.match(/.{1,4}/g);
     return chunks ? chunks.join(" ") : cleaned;
   };
 
   // Format expiry date
-  const formatExpiry = (text) => {
+  const formatExpiry = (text: string) => {
     const cleaned = text.replace(/\D/g, "");
     if (cleaned.length >= 2) {
       return cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4);
@@ -60,15 +60,14 @@ export default function AddPayment() {
     return cleaned;
   };
 
-  const handleCardNumberChange = (text) => {
+  const handleCardNumberChange = (text: string) => {
     const cleaned = text.replace(/\s/g, "");
     if (cleaned.length <= 16) {
       setCardNumber(cleaned);
-      // Removed auto-detection of card type
     }
   };
 
-  const handleExpiryChange = (text) => {
+  const handleExpiryChange = (text: string) => {
     const formatted = formatExpiry(text);
     if (formatted.length <= 5) {
       setExpiry(formatted);

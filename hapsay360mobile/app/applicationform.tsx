@@ -264,7 +264,7 @@ export default function ApplicationForm() {
 
       if (!token) {
         Alert.alert("Error", "Please login again");
-        router.push("/login");
+        router.push("/");
         return;
       }
 
@@ -279,7 +279,7 @@ export default function ApplicationForm() {
       if (!res.ok) {
         if (res.status === 401) {
           Alert.alert("Session Expired", "Please login again");
-          router.push("/login");
+          router.push("/");
           return;
         }
         const errText = await res.text().catch(() => "Unknown error");
@@ -433,7 +433,7 @@ export default function ApplicationForm() {
       const token = await getAuthToken();
       if (!token) {
         Alert.alert("Error", "Please login again");
-        router.push("/login");
+        router.push("/");
         return;
       }
 
@@ -449,7 +449,7 @@ export default function ApplicationForm() {
       if (!res.ok) {
         if (res.status === 401) {
           Alert.alert("Session Expired", "Please login again");
-          router.push("/login");
+          router.push("/");
           return;
         }
         const errData = await res.json().catch(() => ({}));

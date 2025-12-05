@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"; // Import 
 import { Ionicons } from "@expo/vector-icons";
 import GradientHeader from "./components/GradientHeader";
 
-const API_BASE = "http://192.168.0.104:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 // --- Helper Functions (Distance) ---
 const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {

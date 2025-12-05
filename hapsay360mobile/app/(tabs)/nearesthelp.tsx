@@ -35,6 +35,9 @@ import {
 } from "lucide-react-native";
 import GradientHeader from "../components/GradientHeader";
 
+// UPDATE THIS IP TO MATCH YOUR BACKEND
+const API_BASE = "http://192.168.1.6:3000";
+
 const { height } = Dimensions.get("window");
 
 const NearestHelpScreen = () => {
@@ -94,74 +97,44 @@ const NearestHelpScreen = () => {
     }
   }, [showDetailsModal]);
 
+  // --- 1. UPDATED: Fetch from YOUR Database ---
   const fetchNearbyPoliceStations = async () => {
     if (!currentLocation) return;
 
     setFetchingStations(true);
-    const { latitude, longitude } = currentLocation;
-    const radius = 10000; // 10km radius
-
-    // Overpass API query
-    const query = `
-      [out:json][timeout:25];
-      (
-        node["amenity"="police"](around:${radius},${latitude},${longitude});
-        way["amenity"="police"](around:${radius},${latitude},${longitude});
-        relation["amenity"="police"](around:${radius},${latitude},${longitude});
-      );
-      out body;
-      >;
-      out skel qt;
-    `;
 
     try {
-      const response = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        body: query,
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
-
+      // Call your local backend
+      const response = await fetch(`${API_BASE}/api/police-stations`);
       const data = await response.json();
 
-      // Process the results
-      const stations = data.elements
-        .filter((element) => element.lat && element.lon)
-        .map((element, index) => {
-          const tags = element.tags || {};
+      if (data.success) {
+        // Map MongoDB Data to UI Structure
+        const stations = data.data.map((station) => {
           return {
-            id: element.id || index,
-            name: tags.name || `Police Station ${index + 1}`,
-            latitude: element.lat,
-            longitude: element.lon,
-            address: formatAddress(tags),
-            phone: tags.phone || tags["contact:phone"] || "N/A",
-            landline: tags.phone || "N/A",
-            mobile: tags["contact:mobile"] || "N/A",
-            email: tags.email || tags["contact:email"] || "N/A",
-            officer: "Officer Information Not Available",
-            website: tags.website || tags["contact:website"] || null,
-            opening_hours: tags.opening_hours || "24/7",
+            id: station._id,
+            name: station.name,
+            // Ensure these are numbers for the Map
+            latitude: parseFloat(station.location.latitude),
+            longitude: parseFloat(station.location.longitude),
+            address: station.address,
+            phone: station.contact?.phone_number || "N/A",
+            landline: station.contact?.landline || "N/A",
+            email: station.contact?.email || "N/A",
+            officer: "Officer on Duty", // Placeholder (or fetch if available)
+            opening_hours: "24/7",
           };
         });
 
-      console.log(`Found ${stations.length} police stations nearby`);
-      setPoliceStations(stations);
-      setFetchingStations(false);
-
-      if (stations.length === 0) {
-        Alert.alert(
-          "No Police Stations Found",
-          "No police stations found within 10km. Try increasing the search radius."
-        );
+        console.log(`Loaded ${stations.length} police stations from DB`);
+        setPoliceStations(stations);
+      } else {
+        Alert.alert("Error", "Failed to load police stations.");
       }
     } catch (error) {
       console.error("Error fetching police stations:", error);
-      Alert.alert(
-        "Error",
-        "Could not fetch nearby police stations. Please try again."
-      );
+      Alert.alert("Connection Error", "Could not connect to the server.");
+    } finally {
       setFetchingStations(false);
     }
   };
@@ -198,16 +171,6 @@ const NearestHelpScreen = () => {
     }
   };
 
-  const formatAddress = (tags) => {
-    const parts = [];
-    if (tags["addr:street"]) parts.push(tags["addr:street"]);
-    if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
-    if (tags["addr:city"]) parts.push(tags["addr:city"]);
-    if (tags["addr:postcode"]) parts.push(tags["addr:postcode"]);
-
-    return parts.length > 0 ? parts.join(", ") : "Address not available";
-  };
-
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -233,6 +196,7 @@ const NearestHelpScreen = () => {
   const findNearestStation = () => {
     if (!currentLocation || policeStations.length === 0) return;
 
+    // Default to first one
     let nearest = policeStations[0];
     let minDistance = calculateDistance(
       currentLocation.latitude,
@@ -241,6 +205,7 @@ const NearestHelpScreen = () => {
       policeStations[0].longitude
     );
 
+    // Loop to find actual nearest
     policeStations.forEach((station) => {
       const dist = calculateDistance(
         currentLocation.latitude,
@@ -327,7 +292,7 @@ const NearestHelpScreen = () => {
   };
 
   const handleGetDirections = () => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${nearestHelp.latitude},${nearestHelp.longitude}`;
+    const url = `http://maps.google.com/?q=${nearestHelp.latitude},${nearestHelp.longitude}`;
     Linking.openURL(url);
   };
 
@@ -375,7 +340,7 @@ const NearestHelpScreen = () => {
           <ActivityIndicator size="large" color="#DC2626" />
           <Text className="mt-4 text-gray-600 text-base text-center">
             {fetchingStations
-              ? "Searching for nearby police stations..."
+              ? "Connecting to police database..."
               : "Finding nearest help..."}
           </Text>
         </View>

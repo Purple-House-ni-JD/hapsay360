@@ -44,25 +44,6 @@ export default function AddPayment() {
     { value: "paymaya", label: "PayMaya" },
   ];
 
-  // Detect card type based on card number
-  const detectCardType = (number) => {
-    const cleaned = number.replace(/\s/g, "");
-
-    // More lenient detection - just need 1 digit
-    if (cleaned.length >= 1) {
-      if (/^4/.test(cleaned)) return "visa";
-      if (/^5/.test(cleaned)) return "mastercard";
-      if (/^2/.test(cleaned)) return "mastercard";
-      if (/^3/.test(cleaned)) return "gcash";
-      if (/^6/.test(cleaned)) return "gcash";
-      // If starts with any other digit, default to visa for now
-      // User can change it manually
-      return "visa";
-    }
-
-    return "";
-  };
-
   // Format card number with spaces
   const formatCardNumber = (text) => {
     const cleaned = text.replace(/\s/g, "");
@@ -83,7 +64,7 @@ export default function AddPayment() {
     const cleaned = text.replace(/\s/g, "");
     if (cleaned.length <= 16) {
       setCardNumber(cleaned);
-      setCardType(detectCardType(cleaned));
+      // Removed auto-detection of card type
     }
   };
 
@@ -105,7 +86,7 @@ export default function AddPayment() {
       return "Please enter a valid card number (13-19 digits)";
     }
 
-    // Card type is now optional - user can select manually
+    // Card type is required
     if (!cardType) {
       return "Please select a card type";
     }
@@ -161,7 +142,7 @@ export default function AddPayment() {
       // Prepare payment data according to schema
       const paymentData = {
         user_id: userId,
-        payment_method: cardType, // Use detected card type: visa, mastercard, etc.
+        payment_method: cardType, // Use manually selected card type
         card_last4: cardNumber.slice(-4),
         provider: cardType, // Same as payment_method
       };
@@ -317,9 +298,7 @@ export default function AddPayment() {
                 placeholder="1234 5678 9012 3456"
                 keyboardType="numeric"
                 value={formatCardNumber(cardNumber)}
-                onChangeText={(text) =>
-                  handleCardNumberChange(text.replace(/\s/g, ""))
-                }
+                onChangeText={handleCardNumberChange}
                 maxLength={19}
               />
               <View className="absolute right-4 top-4">
@@ -379,9 +358,7 @@ export default function AddPayment() {
 
           {/* Confirm Button */}
           <TouchableOpacity
-            className={`${
-              loading ? "bg-gray-400" : "bg-indigo-600"
-            } py-4 rounded-xl mb-10`}
+            className={`${loading ? "bg-gray-400" : "bg-indigo-600"} py-4 rounded-xl mb-10`}
             style={{
               shadowColor: "#4338ca",
               shadowOffset: { width: 0, height: 2 },

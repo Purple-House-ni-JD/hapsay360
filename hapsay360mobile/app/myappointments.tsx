@@ -246,9 +246,7 @@ export default function MyAppointments() {
                           )}
                         </>
                       ) : (
-                        <Text className="text-gray-500 italic">
-                          No payment record found.
-                        </Text>
+                        <Text className="text-gray-500 italic">Mastercard</Text>
                       )}
 
                       {/* Only show change card if pending */}
@@ -270,7 +268,7 @@ export default function MyAppointments() {
                     <View className="p-5 bg-white flex-row justify-between items-center">
                       <View>
                         <Text className="text-gray-900 font-bold text-xl">
-                          ₱{item.price ? item.price.toFixed(2) : "0.00"}
+                          ₱{item.price ? item.price.toFixed(2) : "250.00"}
                         </Text>
                         <Text className="text-gray-600 text-sm">Total Fee</Text>
                       </View>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,15 +11,25 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ChevronDown, CreditCard, Trash2 } from "lucide-react-native";
+import { ChevronDown, Trash2 } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
 
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.1.41:3000/api";
+
+// Map payment methods to images
+const paymentImages = {
+  visa: require("../assets/images/visa.jpg"),
+  mastercard: require("../assets/images/mastercard.jpg"),
+  gcash: require("../assets/images/gcash.jpg"),
+  paymaya: require("../assets/images/paymaya.jpg"),
+  cod: require("../assets/images/cod.jpg"), // Cash on Delivery
+};
 
 export default function Payments() {
   const router = useRouter();
@@ -29,11 +39,9 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch payments safely
   const fetchPayments = async () => {
     setLoading(true);
     setError("");
-
     try {
       const userId = await AsyncStorage.getItem("userId");
       if (!userId) {
@@ -42,16 +50,8 @@ export default function Payments() {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/api/payments`);
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (err) {
-        setError("Server returned invalid response.");
-        setLoading(false);
-        return;
-      }
+      const response = await fetch(`${API_BASE}/payments?userId=${userId}`);
+      const data = await response.json();
 
       if (!response.ok) {
         setError(data.error || "Failed to fetch payments.");
@@ -59,12 +59,8 @@ export default function Payments() {
         return;
       }
 
-      const userPayments = data.filter((p) => p.user_id._id === userId);
-      setPayments(userPayments);
-
-      if (userPayments.length > 0) {
-        setSelectedPayment(userPayments[0].payment_method);
-      }
+      setPayments(data);
+      setSelectedPayment(data.length > 0 ? data[0].payment_method : "");
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Network error. Please try again.");
@@ -73,7 +69,6 @@ export default function Payments() {
     }
   };
 
-  // Use useFocusEffect to refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchPayments();
@@ -92,10 +87,8 @@ export default function Payments() {
           onPress: async () => {
             try {
               const response = await fetch(
-                `${API_BASE}/api/payments/${paymentId}`,
-                {
-                  method: "DELETE",
-                }
+                `${API_BASE}/payments/${paymentId}`,
+                { method: "DELETE" }
               );
 
               if (!response.ok) {
@@ -104,7 +97,7 @@ export default function Payments() {
               }
 
               Alert.alert("Success", "Payment method deleted successfully");
-              fetchPayments(); // Refresh list
+              fetchPayments();
             } catch (err) {
               Alert.alert("Error", "Network error. Please try again.");
             }
@@ -114,14 +107,14 @@ export default function Payments() {
     );
   };
 
-  const getCardIcon = (method) => {
-    return <CreditCard size={20} color="#4338ca" />;
-  };
-
   const formatPaymentDisplay = (payment) => {
     const method = payment.payment_method.toUpperCase();
     const last4 = payment.card_last4 ? ` •••• ${payment.card_last4}` : "";
     return `${method}${last4}`;
+  };
+
+  const getPaymentImage = (method) => {
+    return paymentImages[method.toLowerCase()] || paymentImages.cod;
   };
 
   return (
@@ -153,14 +146,9 @@ export default function Payments() {
             showsVerticalScrollIndicator={false}
           >
             {payments.length === 0 ? (
-              // Empty state
               <View className="flex-1 justify-center items-center py-20">
-                <CreditCard size={64} color="#D1D5DB" strokeWidth={1.5} />
                 <Text className="text-gray-600 text-lg font-medium mt-4 mb-2">
                   No Payment Methods
-                </Text>
-                <Text className="text-gray-400 text-sm text-center mb-6">
-                  Add a payment method to get started
                 </Text>
                 <TouchableOpacity
                   className="bg-indigo-600 px-8 py-3 rounded-xl"
@@ -174,7 +162,6 @@ export default function Payments() {
               </View>
             ) : (
               <>
-                {/* Default Payment */}
                 <View className="mb-4 mt-2">
                   <Text className="text-gray-700 font-semibold text-sm mb-2 mt-2">
                     DEFAULT PAYMENT
@@ -185,18 +172,17 @@ export default function Payments() {
                     onPress={() => setShowDropdown(true)}
                   >
                     <View className="flex-row items-center">
-                      {getCardIcon(selectedPayment)}
+                      <Image
+                        source={getPaymentImage(selectedPayment)}
+                        style={{ width: 32, height: 32, resizeMode: "contain" }}
+                      />
                       <Text className="text-gray-900 ml-3 font-medium">
                         {selectedPayment
-                          ? payments.find(
-                              (p) => p.payment_method === selectedPayment
-                            )
-                            ? formatPaymentDisplay(
-                                payments.find(
-                                  (p) => p.payment_method === selectedPayment
-                                )
+                          ? formatPaymentDisplay(
+                              payments.find(
+                                (p) => p.payment_method === selectedPayment
                               )
-                            : selectedPayment.toUpperCase()
+                            )
                           : "Select default payment"}
                       </Text>
                     </View>
@@ -204,17 +190,14 @@ export default function Payments() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Separator */}
                 <View
                   style={{
                     height: 1,
                     backgroundColor: "#E5E7EB",
-                    marginBottom: 20,
-                    marginTop: 10,
+                    marginVertical: 10,
                   }}
                 />
 
-                {/* All Payment Methods */}
                 <View className="mb-6">
                   <Text className="text-gray-700 font-semibold text-sm mb-3">
                     ALL PAYMENT METHODS
@@ -227,7 +210,14 @@ export default function Payments() {
                       style={{ backgroundColor: "#F9FAFB" }}
                     >
                       <View className="flex-row items-center flex-1">
-                        {getCardIcon(payment.payment_method)}
+                        <Image
+                          source={getPaymentImage(payment.payment_method)}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            resizeMode: "contain",
+                          }}
+                        />
                         <View className="ml-3 flex-1">
                           <Text className="text-gray-900 text-base font-medium">
                             {formatPaymentDisplay(payment)}
@@ -249,7 +239,6 @@ export default function Payments() {
                   ))}
                 </View>
 
-                {/* Add Payment Button */}
                 <TouchableOpacity
                   className="bg-indigo-600 mt-4 mb-10 px-8 py-4 rounded-xl"
                   onPress={() => router.push("/addpayment")}
@@ -271,10 +260,8 @@ export default function Payments() {
           </ScrollView>
         )}
 
-        {/* Bottom Navigation */}
         <BottomNav activeRoute="/(tabs)/profile" />
 
-        {/* Default Payment Dropdown Modal */}
         <Modal visible={showDropdown} transparent animationType="fade">
           <Pressable
             className="flex-1 bg-black/50 justify-center items-center"
@@ -296,7 +283,10 @@ export default function Payments() {
                       setShowDropdown(false);
                     }}
                   >
-                    {getCardIcon(payment.payment_method)}
+                    <Image
+                      source={getPaymentImage(payment.payment_method)}
+                      style={{ width: 32, height: 32, resizeMode: "contain" }}
+                    />
                     <Text className="text-gray-900 text-base ml-3">
                       {formatPaymentDisplay(payment)}
                     </Text>

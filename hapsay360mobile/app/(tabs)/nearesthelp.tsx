@@ -36,7 +36,7 @@ import {
 import GradientHeader from "../components/GradientHeader";
 
 // UPDATE THIS IP TO MATCH YOUR BACKEND
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.1.41:3000";
 
 const { height } = Dimensions.get("window");
 

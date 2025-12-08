@@ -19,12 +19,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // UPDATE THIS TO YOUR IP
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "http://192.168.1.41:3000";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function HomeScreen() {
-  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -127,26 +126,6 @@ export default function HomeScreen() {
             </Text>
           </View>
         </LinearGradient>
-
-        {/* Floating Search Bar */}
-        <View
-          className="absolute left-0 right-0 px-6 z-20"
-          style={{
-            bottom: -25,
-          }}
-        >
-          <View className="bg-white rounded-xl flex-row items-center px-4 py-3.5 shadow-lg">
-            <TextInput
-              className="flex-1 text-gray-700 text-base"
-              placeholder="Search"
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={{ height: 30 }}
-            />
-            <Ionicons name="search-outline" size={22} color="#9ca3af" />
-          </View>
-        </View>
       </View>
 
       {/* Content Area */}

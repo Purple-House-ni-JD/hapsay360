@@ -206,7 +206,7 @@ export default function ApplicationForm() {
   const [city, setCity] = useState("");
   const [barangay, setBarangay] = useState("");
   const [province, setProvince] = useState("");
-  const [postalCode, setPostalCode] = useState("");
+  const [postal_code, setPostalCode] = useState("");
   const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
@@ -246,7 +246,7 @@ export default function ApplicationForm() {
   const [spouseQualifier, setSpouseQualifier] = useState("");
 
   // ----------------------- Auth / API -----------------------
-  const API_BASE = "http://192.168.1.6:3000/api/application";
+  const API_BASE = "http://192.168.1.41:3000/api/application";
 
   const getAuthToken = async () => {
     try {
@@ -289,22 +289,23 @@ export default function ApplicationForm() {
       const data = await res.json();
       const p = data.profile || {};
 
+      // ----------------------- Map fields -----------------------
       if (p.personal_info?.givenName) {
         setHasExistingProfile(true);
 
-        // Personal info
-        setGivenName(p.personal_info?.givenName || "");
-        setMiddleName(p.personal_info?.middleName || "");
-        setSurname(p.personal_info?.surname || "");
-        setQualifier(p.personal_info?.qualifier || "");
-        setSex(p.personal_info?.sex || "");
-        setCivilStatus(p.personal_info?.civilStatus || "");
-        setBirthdate(formatDateToLocal(p.personal_info?.birthdate || ""));
-        setIsPWD(p.personal_info?.isPWD || false);
-        setIsFirstTimeJobSeeker(p.personal_info?.isFirstTimeJobSeeker || false);
-        setNationality(p.personal_info?.nationality || "");
-        setBirthPlace(p.personal_info?.birthPlace || "");
-        setOtherCountry(p.personal_info?.otherCountry || "");
+        // Personal Info
+        setGivenName(p.personal_info.givenName || "");
+        setMiddleName(p.personal_info.middleName || "");
+        setSurname(p.personal_info.surname || "");
+        setQualifier(p.personal_info.qualifier || "");
+        setSex(p.personal_info.sex || "");
+        setCivilStatus(p.personal_info.civilStatus || "");
+        setBirthdate(formatDateToLocal(p.personal_info.birthdate || ""));
+        setIsPWD(p.personal_info.isPWD || false);
+        setIsFirstTimeJobSeeker(p.personal_info.isFirstTimeJobSeeker || false);
+        setNationality(p.personal_info.nationality || "");
+        setBirthPlace(p.personal_info.birthPlace || "");
+        setOtherCountry(p.personal_info.otherCountry || "");
 
         // Address
         setHouseNo(p.address?.houseNo || "");
@@ -312,7 +313,7 @@ export default function ApplicationForm() {
         setCity(p.address?.city || "");
         setBarangay(p.address?.barangay || "");
         setProvince(p.address?.province || "");
-        setPostalCode(p.address?.postalCode || "");
+        setPostalCode(p.address?.postal_code || "");
         setCountry(p.address?.country || "");
         setEmail(p.address?.email || "");
         setMobile(p.address?.mobile || "");
@@ -366,17 +367,19 @@ export default function ApplicationForm() {
     }
 
     const profile = {
-      // Fields that will sync to User
       personal_info: {
-        given_name: givenName,
-        middle_name: middleName,
+        givenName: givenName,
+        middleName: middleName,
         surname: surname,
         qualifier: qualifier,
         sex: sex,
-        civil_status: civilStatus,
-        birthday: birthdate ? new Date(birthdate) : null,
-        pwd: isPWD,
+        civilStatus: civilStatus,
+        birthdate: parseDateToISO(birthdate),
+        isPWD: isPWD,
+        isFirstTimeJobSeeker: isFirstTimeJobSeeker,
         nationality: nationality,
+        birthPlace: birthPlace,
+        otherCountry: otherCountry,
       },
       address: {
         houseNo: houseNo,
@@ -384,47 +387,45 @@ export default function ApplicationForm() {
         city: city,
         barangay: barangay,
         province: province,
-        postalCode: postalCode,
+        postal_code: postal_code,
         country: country,
         email: email,
         mobile: mobile,
         telephone: telephone,
       },
-
-      // Fields only for ApplicationProfile
+      family: {
+        father: {
+          given: fatherGiven,
+          middle: fatherMiddle,
+          surname: fatherSurname,
+          qualifier: fatherQualifier,
+          birthPlace: fatherBirthPlace,
+          otherCountry: fatherOtherCountry,
+        },
+        mother: {
+          given: motherGiven,
+          middle: motherMiddle,
+          surname: motherSurname,
+          qualifier: motherQualifier,
+          birthPlace: motherBirthPlace,
+          otherCountry: motherOtherCountry,
+        },
+        spouse: {
+          given: spouseGiven,
+          middle: spouseMiddle,
+          surname: spouseSurname,
+          qualifier: spouseQualifier,
+        },
+      },
       other_info: {
         height: height,
         weight: weight,
         complexion: complexion,
-        identifying_marks: identifyingMarks,
-        blood_type: bloodType,
+        identifyingMarks: identifyingMarks,
+        bloodType: bloodType,
         religion: religion,
         education: education,
         occupation: occupation,
-      },
-      family: {
-        father: {
-          given_name: fatherGiven,
-          middle_name: fatherMiddle,
-          surname: fatherSurname,
-          qualifier: fatherQualifier,
-          birth_place: fatherBirthPlace,
-          other_country: fatherOtherCountry,
-        },
-        mother: {
-          given_name: motherGiven,
-          middle_name: motherMiddle,
-          surname: motherSurname,
-          qualifier: motherQualifier,
-          birth_place: motherBirthPlace,
-          other_country: motherOtherCountry,
-        },
-        spouse: {
-          given_name: spouseGiven,
-          middle_name: spouseMiddle,
-          surname: spouseSurname,
-          qualifier: spouseQualifier,
-        },
       },
     };
 
@@ -494,6 +495,15 @@ export default function ApplicationForm() {
       </SafeAreaView>
     );
   }
+
+  const parseDateToISO = (dateStr: string) => {
+    // expects MM/DD/YYYY
+    if (!dateStr) return null;
+    const [month, day, year] = dateStr.split("/").map(Number);
+    if (!month || !day || !year) return null;
+    const d = new Date(year, month - 1, day);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
 
   return (
     <SafeAreaView
@@ -649,7 +659,7 @@ export default function ApplicationForm() {
 
         <InputField
           label="Postal Code"
-          value={postalCode}
+          value={postal_code}
           onChangeText={setPostalCode}
           color={textColor}
           placeholder="Postal/Zip code"

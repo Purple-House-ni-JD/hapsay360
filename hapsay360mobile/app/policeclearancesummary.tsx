@@ -19,6 +19,7 @@ interface Appointment {
   _id: string;
   purpose: string;
   policeStation: string;
+  stationId?: string;
   appointmentDate: string;
   timeSlot: string;
   status: string;
@@ -26,34 +27,46 @@ interface Appointment {
   amount: number;
 }
 
+interface PaymentMethod {
+  _id: string;
+  user_id: string;
+  payment_method: string;
+  card_last4?: string;
+  provider?: string;
+}
+
 export default function PoliceClearanceSummary() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const appointmentId = params.appointmentId as string;
-  const paymentMethod = params.paymentMethod as string;
+  const paymentMethodId = params.paymentMethodId as string;
   const appointmentDataParam = params.appointmentData as string;
 
-  const API_BASE = "http://192.168.1.6:3000/api";
+  const API_BASE = "http://192.168.1.41:3000/api";
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    null
+  );
+  const [loadingPayment, setLoadingPayment] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const paymentMethodNames: Record<string, string> = {
-    cod: "Cash on Delivery",
-    gcash: "Gcash",
-    mastercard: "Mastercard",
-    visa: "Visa",
-    paymaya: "Paymaya",
-  };
-
   const paymentMethodIcons: Record<string, any> = {
-    cod: require("../assets/images/cod.jpg"),
+    "cash on delivery": require("../assets/images/cod.jpg"),
     gcash: require("../assets/images/gcash.jpg"),
     mastercard: require("../assets/images/mastercard.jpg"),
     visa: require("../assets/images/visa.jpg"),
     paymaya: require("../assets/images/paymaya.jpg"),
+  };
+
+  const paymentMethodDisplayNames: Record<string, string> = {
+    "cash on delivery": "Cash on Delivery",
+    gcash: "Gcash",
+    mastercard: "Mastercard",
+    visa: "Visa",
+    paymaya: "Paymaya",
   };
 
   const getAuthToken = async () => {
@@ -62,6 +75,44 @@ export default function PoliceClearanceSummary() {
     } catch (error) {
       console.error("Error getting auth token:", error);
       return null;
+    }
+  };
+
+  const fetchPaymentMethod = async () => {
+    if (!paymentMethodId) {
+      setLoadingPayment(false);
+      return;
+    }
+
+    try {
+      setLoadingPayment(true);
+      const token = await getAuthToken();
+
+      if (!token) {
+        Alert.alert("Error", "Please login again");
+        router.push("/");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/payments/${paymentMethodId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch payment method");
+      }
+
+      const data = await res.json();
+      setPaymentMethod(data);
+    } catch (err: any) {
+      console.error("Fetch payment method error:", err);
+      Alert.alert("Error", "Failed to load payment method details");
+    } finally {
+      setLoadingPayment(false);
     }
   };
 
@@ -78,7 +129,7 @@ export default function PoliceClearanceSummary() {
 
       if (!token) {
         Alert.alert("Error", "Please login again");
-        router.push("/login");
+        router.push("/");
         return;
       }
 
@@ -105,10 +156,15 @@ export default function PoliceClearanceSummary() {
   };
 
   useEffect(() => {
+    // Fetch payment method
+    fetchPaymentMethod();
+
+    // Fetch appointment data
     if (appointmentDataParam) {
       try {
         const parsedData = JSON.parse(appointmentDataParam);
         setAppointment(parsedData);
+        setLoading(false);
       } catch (err) {
         console.error("Failed to parse appointmentDataParam", err);
         fetchAppointment();
@@ -124,12 +180,17 @@ export default function PoliceClearanceSummary() {
       return;
     }
 
+    if (!paymentMethod) {
+      Alert.alert("Error", "Payment method not selected");
+      return;
+    }
+
     try {
       setSaving(true);
       const token = await getAuthToken();
       if (!token) {
         Alert.alert("Error", "Please login again");
-        router.push("/login");
+        router.push("/");
         return;
       }
 
@@ -141,9 +202,11 @@ export default function PoliceClearanceSummary() {
         },
         body: JSON.stringify({
           purpose: appointment.purpose,
-          policeStation: appointment.stationId, // use ID from Booking page
+          policeStation: appointment.stationId,
           appointmentDate: appointment.appointmentDate,
           timeSlot: appointment.timeSlot,
+          paymentMethodId: paymentMethod._id,
+          amount: appointment.amount,
         }),
       });
 
@@ -159,6 +222,7 @@ export default function PoliceClearanceSummary() {
         params: {
           policeStation: appointment.policeStation,
           amount: appointment.amount.toString(),
+          clearanceId: data.data._id,
         },
       });
     } catch (err: any) {
@@ -179,18 +243,26 @@ export default function PoliceClearanceSummary() {
     });
   };
 
-  const getCardLastDigits = (method: string) => {
-    const cardDigits: Record<string, string> = {
-      mastercard: "413",
-      visa: "789",
-      gcash: "N/A",
-      paymaya: "N/A",
-      cod: "N/A",
-    };
-    return cardDigits[method] || "000";
+  const getPaymentMethodDisplayName = () => {
+    if (!paymentMethod) return "Unknown";
+
+    let name =
+      paymentMethodDisplayNames[paymentMethod.payment_method] ||
+      paymentMethod.payment_method;
+
+    if (paymentMethod.card_last4) {
+      name += ` •••• ${paymentMethod.card_last4}`;
+    }
+
+    return name;
   };
 
-  if (loading || !appointment) {
+  const isCardPayment = () => {
+    if (!paymentMethod) return false;
+    return ["mastercard", "visa"].includes(paymentMethod.payment_method);
+  };
+
+  if (loading || loadingPayment || !appointment) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
         <GradientHeader title="Book Appointment" onBack={() => router.back()} />
@@ -218,7 +290,7 @@ export default function PoliceClearanceSummary() {
           </View>
 
           <View
-            className="flex-1 h-px bg-gray-300 mx-2"
+            className="flex-1 h-px bg-indigo-600 mx-2"
             style={{ marginTop: -20 }}
           />
 
@@ -272,45 +344,70 @@ export default function PoliceClearanceSummary() {
             <Text className="text-lg font-bold text-gray-900 mb-4">
               Payment Details
             </Text>
-            <View className="flex-row items-center mb-3">
-              {paymentMethodIcons[paymentMethod] && (
-                <Image
-                  source={paymentMethodIcons[paymentMethod]}
-                  style={{
-                    width: 32,
-                    height: 20,
-                    marginRight: 8,
-                    borderRadius: 4,
-                  }}
-                />
-              )}
-              <Text className="text-gray-900 font-medium">
-                {paymentMethodNames[paymentMethod] || "Unknown"}
-              </Text>
-            </View>
 
-            {paymentMethod !== "cod" &&
-              paymentMethod !== "gcash" &&
-              paymentMethod !== "paymaya" && (
-                <View className="mb-2">
-                  <Text className="text-gray-600 text-sm mb-1">
-                    Card number
-                  </Text>
-                  <Text className="text-gray-900 font-medium text-base">
-                    XXX XXX XXX {getCardLastDigits(paymentMethod)}
-                  </Text>
+            {paymentMethod ? (
+              <>
+                <View className="flex-row items-center mb-3">
+                  {paymentMethodIcons[paymentMethod.payment_method] && (
+                    <Image
+                      source={paymentMethodIcons[paymentMethod.payment_method]}
+                      style={{
+                        width: 32,
+                        height: 20,
+                        marginRight: 8,
+                        borderRadius: 4,
+                      }}
+                    />
+                  )}
+                  <View className="flex-1">
+                    <Text className="text-gray-900 font-medium">
+                      {getPaymentMethodDisplayName()}
+                    </Text>
+                    {paymentMethod.provider && (
+                      <Text className="text-gray-500 text-xs mt-1">
+                        {paymentMethod.provider}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-              )}
 
-            {/* Change card details button */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setShowConfirmation(true)}
-            >
-              <Text className="text-indigo-600 text-sm font-medium">
-                Change payment method
-              </Text>
-            </TouchableOpacity>
+                {isCardPayment() && paymentMethod.card_last4 && (
+                  <View className="mb-2">
+                    <Text className="text-gray-600 text-sm mb-1">
+                      Card number
+                    </Text>
+                    <Text className="text-gray-900 font-medium text-base">
+                      •••• •••• •••• {paymentMethod.card_last4}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Change payment method button */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowConfirmation(true)}
+                >
+                  <Text className="text-indigo-600 text-sm font-medium">
+                    Change payment method
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View className="py-4">
+                <Text className="text-gray-500 text-center">
+                  No payment method selected
+                </Text>
+                <TouchableOpacity
+                  className="mt-3"
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-indigo-600 text-center font-medium">
+                    Select Payment Method
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View className="h-px bg-gray-200" />
@@ -329,7 +426,10 @@ export default function PoliceClearanceSummary() {
           className="bg-indigo-600 rounded-xl py-4 items-center mb-8"
           activeOpacity={0.8}
           onPress={handleSaveAppointment}
-          disabled={saving}
+          disabled={saving || !paymentMethod}
+          style={{
+            opacity: saving || !paymentMethod ? 0.5 : 1,
+          }}
         >
           <Text className="text-white font-semibold text-base">
             {saving ? "Processing..." : "Save Appointment"}
@@ -348,6 +448,9 @@ export default function PoliceClearanceSummary() {
       >
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-white rounded-t-3xl p-6 items-center">
+            <View className="items-center pb-2 mb-4">
+              <View className="w-40 h-2 bg-gray-200 rounded-full" />
+            </View>
             <Text className="text-lg font-semibold mb-3">
               Change Payment Method
             </Text>

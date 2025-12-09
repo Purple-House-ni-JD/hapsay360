@@ -50,35 +50,80 @@ export default function BookPoliceClearanceScreen() {
     const fetchProfile = async () => {
       try {
         const token = await AsyncStorage.getItem("authToken");
-        if (!token) {
+        const userId = await AsyncStorage.getItem("userId");
+
+        if (!token || !userId) {
           Alert.alert("Error", "Please login again");
-          router.push("/login");
+          router.push("/");
           return;
         }
 
-        const res = await fetch(
-          "http://192.168.1.6:3000/api/application/my-application",
-          {
-            method: "GET",
+        // Fetch application profile and user data in parallel
+        const [appRes, userRes] = await Promise.all([
+          fetch("http://192.168.1.41:3000/api/application/my-application", {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
+          }),
+          fetch(`http://192.168.1.41:3000/api/users/${userId}`, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
+
+        if (!appRes.ok || !userRes.ok)
+          throw new Error("Failed to fetch profile");
+
+        const appData = await appRes.json();
+        const userData = await userRes.json();
+
+        if (appData.profile && userData.data) {
+          // Merge both sources
+          const mergedProfile = {
+            ...appData.profile,
+            profile_picture: userData.data.profile_picture,
+          };
+
+          setProfile(mergedProfile);
+
+          // Set email
+          setEmail(appData.profile.address?.email || userData.data.email || "");
+
+          // Set birthday in MM/DD/YYYY
+          const birthIso = appData.profile.personal_info?.birthdate;
+          if (birthIso) {
+            const d = new Date(birthIso);
+            const month = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const year = d.getFullYear();
+            setBirthday(`${month}/${day}/${year}`);
+          } else {
+            setBirthday("");
           }
-        );
 
-        if (!res.ok) throw new Error("Failed to fetch profile");
+          // Set sex
+          setSex(appData.profile.personal_info?.sex || "");
 
-        const data = await res.json();
-
-        if (data.profile) {
-          setProfile(data.profile);
-
-          // Set state values
-          setEmail(data.profile.address?.email || "");
-          setBirthday(formatLocalDate(data.profile.personal_info?.birthdate));
-          setSex(data.profile.personal_info?.sex || "");
-          setAddress(formatAddress(data.profile.address));
+          // Set formatted address
+          const addr = appData.profile.address;
+          if (addr) {
+            const formattedAddress = [
+              addr.houseNo,
+              addr.street,
+              addr.barangay,
+              addr.city,
+              addr.province,
+              addr.country,
+            ]
+              .filter(Boolean)
+              .join(", ");
+            setAddress(formattedAddress);
+          } else {
+            setAddress("");
+          }
         }
       } catch (err: any) {
         console.error(err);
@@ -104,6 +149,13 @@ export default function BookPoliceClearanceScreen() {
     });
   };
 
+  const profileImageUri =
+    profile?.profile_picture && profile.profile_picture.trim() !== ""
+      ? profile.profile_picture.replace(".svg", ".png")
+      : `https://ui-avatars.com/api/?name=${
+          profile?.personal_info?.givenName ?? "User"
+        }+${profile?.personal_info?.surname ?? ""}&background=random`;
+
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: bgColor }}
@@ -116,12 +168,11 @@ export default function BookPoliceClearanceScreen() {
         <View className="items-center pt-10 pb-4">
           <View className="w-36 h-36 rounded-full overflow-hidden mb-3">
             <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
-              }}
+              source={{ uri: profileImageUri }}
               className="w-full h-full"
             />
           </View>
+
           <Text className="text-gray-900 text-xl font-semibold">
             {profile?.personal_info?.givenName}{" "}
             {profile?.personal_info?.surname}

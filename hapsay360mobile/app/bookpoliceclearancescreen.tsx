@@ -60,13 +60,13 @@ export default function BookPoliceClearanceScreen() {
 
         // Fetch application profile and user data in parallel
         const [appRes, userRes] = await Promise.all([
-          fetch("http://192.168.1.41:3000/api/application/my-application", {
+          fetch("http://192.168.1.6:3000/api/application/my-application", {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch(`http://192.168.1.41:3000/api/users/${userId}`, {
+          fetch(`http://192.168.1.6:3000/api/users/${userId}`, {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,

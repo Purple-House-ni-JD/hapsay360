@@ -49,7 +49,7 @@ const timeSlots = {
 
 export default function BookingPoliceClearance() {
   const router = useRouter();
-  const API_BASE = "http://192.168.1.41:3000/api";
+  const API_BASE = "http://192.168.1.6:3000/api";
 
   const [loading, setLoading] = useState(false);
   const [purpose, setPurpose] = useState("");
@@ -118,61 +118,29 @@ export default function BookingPoliceClearance() {
     setLoading(true);
 
     try {
-      // 1️⃣ Get auth token
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert("Error", "Please login again");
-        router.push("/login");
-        return;
-      }
-
-      // 2️⃣ Validate selected date
       const selectedDateObj = dates.find((d) => d.day === selectedDate);
       if (!selectedDateObj) {
         throw new Error("Invalid date selected");
       }
 
-      // 3️⃣ Prepare request payload
-      const payload = {
+      const appointmentData = {
         purpose,
-        policeStation: stationId,
+        stationId,
+        station,
         appointmentDate: selectedDateObj.fullDate.toISOString(),
         timeSlot: `${selectedTime} ${timeSlot}`,
+        amount: 250,
       };
 
-      // 4️⃣ Send POST request to backend
-      const res = await fetch(`${API_BASE}/clearance/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      await AsyncStorage.setItem(
+        "pendingAppointment",
+        JSON.stringify(appointmentData)
+      );
 
-      const result = await res.json();
-
-      if (!res.ok) {
-        // If backend sends an error, display it
-        throw new Error(result?.message || "Failed to create clearance");
-      }
-
-      // 5️⃣ Extract IDs from backend response
-      const { _id, custom_id } = result.data;
-
-      if (!_id || !custom_id) {
-        throw new Error("Missing appointment ID or custom ID from server");
-      }
-
-      // 6️⃣ Save to AsyncStorage
-      await AsyncStorage.setItem("latestClearanceId", _id);
-      await AsyncStorage.setItem("latestClearanceCustomId", custom_id);
-
-      setAppointmentId(_id);
       setShowConfirmation(false);
       setShowSuccess(true);
     } catch (err: any) {
-      console.error("Error booking clearance:", err);
+      console.error("Error saving appointment:", err);
       Alert.alert("Error", err.message || "Unexpected error occurred");
     } finally {
       setLoading(false);
@@ -183,40 +151,20 @@ export default function BookingPoliceClearance() {
     setShowSuccess(false);
 
     try {
-      // 1️⃣ Validate selected date
-      const selectedDateObj = dates.find((d) => d.day === selectedDate);
-      if (!selectedDateObj) {
-        throw new Error("Invalid appointment date");
-      }
+      const appointmentDataString =
+        await AsyncStorage.getItem("pendingAppointment");
 
-      // 2️⃣ Retrieve latest clearance IDs from AsyncStorage
-      const appointmentIdFromStorage =
-        await AsyncStorage.getItem("latestClearanceId");
-      const customId = await AsyncStorage.getItem("latestClearanceCustomId");
-
-      if (!appointmentIdFromStorage || !customId) {
+      if (!appointmentDataString) {
         throw new Error(
-          "Missing appointment ID or custom ID. Please try booking again."
+          "Appointment data not found. Please try booking again."
         );
       }
 
-      // 3️⃣ Prepare appointment data for payment screen
-      const appointmentData = {
-        _id: appointmentIdFromStorage,
-        purpose,
-        policeStation: station,
-        appointmentDate: selectedDateObj.fullDate.toISOString(),
-        timeSlot: `${selectedTime} ${timeSlot}`,
-        status: "pending",
-        paymentStatus: "unpaid",
-        amount: 250,
-        custom_id: customId,
-      };
+      const appointmentData = JSON.parse(appointmentDataString);
 
       router.push({
         pathname: "/policeclearancepayment",
         params: {
-          appointmentId: appointmentIdFromStorage,
           appointmentData: JSON.stringify(appointmentData),
         },
       });

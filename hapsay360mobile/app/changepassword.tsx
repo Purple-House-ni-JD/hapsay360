@@ -20,7 +20,7 @@ import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
 
 // NOTE: Make sure this IP is correct
-const API_BASE = "http://192.168.1.41:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function ChangePassword() {
   const router = useRouter();

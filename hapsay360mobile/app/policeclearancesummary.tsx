@@ -8,6 +8,7 @@ import {
   StatusBar,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +20,8 @@ interface Appointment {
   _id: string;
   purpose: string;
   policeStation: string;
-  stationId?: string;
+  // stationId can be an object (if populated) or a string
+  stationId?: any;
   appointmentDate: string;
   timeSlot: string;
   status: string;
@@ -35,14 +37,15 @@ interface PaymentMethod {
   provider?: string;
 }
 
+// UPDATE TO YOUR IP
+const API_BASE = "http://192.168.1.6:3000/api";
+
 export default function PoliceClearanceSummary() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const appointmentId = params.appointmentId as string;
   const paymentMethodId = params.paymentMethodId as string;
   const appointmentDataParam = params.appointmentData as string;
-
-  const API_BASE = "http://192.168.1.41:3000/api";
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,7 +54,7 @@ export default function PoliceClearanceSummary() {
     null
   );
   const [loadingPayment, setLoadingPayment] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const paymentMethodIcons: Record<string, any> = {
     "cash on delivery": require("../assets/images/cod.jpg"),
@@ -78,22 +81,20 @@ export default function PoliceClearanceSummary() {
     }
   };
 
+  // --- FETCH HELPERS ---
   const fetchPaymentMethod = async () => {
     if (!paymentMethodId) {
       setLoadingPayment(false);
       return;
     }
-
     try {
       setLoadingPayment(true);
       const token = await getAuthToken();
-
       if (!token) {
         Alert.alert("Error", "Please login again");
         router.push("/");
         return;
       }
-
       const res = await fetch(`${API_BASE}/payments/${paymentMethodId}`, {
         method: "GET",
         headers: {
@@ -101,11 +102,7 @@ export default function PoliceClearanceSummary() {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch payment method");
-      }
-
+      if (!res.ok) throw new Error("Failed to fetch payment method");
       const data = await res.json();
       setPaymentMethod(data);
     } catch (err: any) {
@@ -122,17 +119,14 @@ export default function PoliceClearanceSummary() {
       router.back();
       return;
     }
-
     try {
       setLoading(true);
       const token = await getAuthToken();
-
       if (!token) {
         Alert.alert("Error", "Please login again");
         router.push("/");
         return;
       }
-
       const res = await fetch(`${API_BASE}/appointments/${appointmentId}`, {
         method: "GET",
         headers: {
@@ -140,11 +134,7 @@ export default function PoliceClearanceSummary() {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch appointment");
-      }
-
+      if (!res.ok) throw new Error("Failed to fetch appointment");
       const data = await res.json();
       setAppointment(data.appointment);
     } catch (err: any) {
@@ -156,10 +146,7 @@ export default function PoliceClearanceSummary() {
   };
 
   useEffect(() => {
-    // Fetch payment method
     fetchPaymentMethod();
-
-    // Fetch appointment data
     if (appointmentDataParam) {
       try {
         const parsedData = JSON.parse(appointmentDataParam);
@@ -174,63 +161,43 @@ export default function PoliceClearanceSummary() {
     }
   }, []);
 
-  const handleSaveAppointment = async () => {
+  // --- FIXED: NAVIGATION ONLY (No API Call) ---
+  const handleProceed = () => {
+    if (isNavigating) return; // Prevent double-tap
+
     if (!appointment) {
       Alert.alert("Error", "Appointment not loaded correctly");
       return;
     }
-
     if (!paymentMethod) {
       Alert.alert("Error", "Payment method not selected");
       return;
     }
 
-    try {
-      setSaving(true);
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert("Error", "Please login again");
-        router.push("/");
-        return;
-      }
+    setIsNavigating(true);
 
-      const res = await fetch(`${API_BASE}/clearance/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          purpose: appointment.purpose,
-          policeStation: appointment.stationId,
-          appointmentDate: appointment.appointmentDate,
-          timeSlot: appointment.timeSlot,
-          paymentMethodId: paymentMethod._id,
-          amount: appointment.amount,
-        }),
-      });
+    // Safely extract the Station ID
+    const rawStationId = appointment.stationId;
+    const safeStationId =
+      rawStationId && typeof rawStationId === "object" && rawStationId._id
+        ? rawStationId._id
+        : rawStationId;
 
-      const data = await res.json();
+    router.push({
+      pathname: "/policeclearancepaymentproof",
+      params: {
+        purpose: appointment.purpose,
+        stationId: safeStationId,
+        appointmentDate: appointment.appointmentDate,
+        timeSlot: appointment.timeSlot,
+        paymentMethodId: paymentMethod._id,
+        amount: appointment.amount.toString(),
+        policeStationName: appointment.policeStation,
+      },
+    });
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to create clearance");
-      }
-
-      // Navigate to confirmation page
-      router.push({
-        pathname: "/policeclearanceconfirmation",
-        params: {
-          policeStation: appointment.policeStation,
-          amount: appointment.amount.toString(),
-          clearanceId: data.data._id,
-        },
-      });
-    } catch (err: any) {
-      console.error("Create clearance error:", err);
-      Alert.alert("Error", `Failed to save clearance: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
+    // Reset after navigation
+    setTimeout(() => setIsNavigating(false), 1000);
   };
 
   const formatDate = (isoDate: string) => {
@@ -245,15 +212,12 @@ export default function PoliceClearanceSummary() {
 
   const getPaymentMethodDisplayName = () => {
     if (!paymentMethod) return "Unknown";
-
     let name =
       paymentMethodDisplayNames[paymentMethod.payment_method] ||
       paymentMethod.payment_method;
-
     if (paymentMethod.card_last4) {
       name += ` •••• ${paymentMethod.card_last4}`;
     }
-
     return name;
   };
 
@@ -267,7 +231,8 @@ export default function PoliceClearanceSummary() {
       <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
         <GradientHeader title="Book Appointment" onBack={() => router.back()} />
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500">Loading...</Text>
+          <ActivityIndicator size="large" color="#4f46e5" />
+          <Text className="text-gray-500 mt-2">Loading details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -276,7 +241,6 @@ export default function PoliceClearanceSummary() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
       <StatusBar barStyle="light-content" />
-
       <GradientHeader title="Book Appointment" onBack={() => router.back()} />
 
       {/* Stepper */}
@@ -288,24 +252,20 @@ export default function PoliceClearanceSummary() {
             </View>
             <Text className="text-xs text-gray-500">Book date</Text>
           </View>
-
           <View
             className="flex-1 h-px bg-indigo-600 mx-2"
             style={{ marginTop: -20 }}
           />
-
           <View className="items-center" style={{ width: 70 }}>
             <View className="w-10 h-10 rounded-full bg-gray-300 items-center justify-center mb-2">
               <Text className="text-white font-bold">2</Text>
             </View>
             <Text className="text-xs text-gray-500">Payment</Text>
           </View>
-
           <View
             className="flex-1 h-px bg-indigo-600 mx-2"
             style={{ marginTop: -20 }}
           />
-
           <View className="items-center" style={{ width: 70 }}>
             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center mb-2">
               <Text className="text-white font-bold">3</Text>
@@ -344,7 +304,6 @@ export default function PoliceClearanceSummary() {
             <Text className="text-lg font-bold text-gray-900 mb-4">
               Payment Details
             </Text>
-
             {paymentMethod ? (
               <>
                 <View className="flex-row items-center mb-3">
@@ -370,7 +329,6 @@ export default function PoliceClearanceSummary() {
                     )}
                   </View>
                 </View>
-
                 {isCardPayment() && paymentMethod.card_last4 && (
                   <View className="mb-2">
                     <Text className="text-gray-600 text-sm mb-1">
@@ -381,8 +339,6 @@ export default function PoliceClearanceSummary() {
                     </Text>
                   </View>
                 )}
-
-                {/* Change payment method button */}
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => setShowConfirmation(true)}
@@ -421,18 +377,18 @@ export default function PoliceClearanceSummary() {
           </View>
         </View>
 
-        {/* Save Button */}
+        {/* Proceed Button */}
         <TouchableOpacity
           className="bg-indigo-600 rounded-xl py-4 items-center mb-8"
           activeOpacity={0.8}
-          onPress={handleSaveAppointment}
-          disabled={saving || !paymentMethod}
+          onPress={handleProceed}
+          disabled={!paymentMethod}
           style={{
-            opacity: saving || !paymentMethod ? 0.5 : 1,
+            opacity: !paymentMethod ? 0.5 : 1,
           }}
         >
           <Text className="text-white font-semibold text-base">
-            {saving ? "Processing..." : "Save Appointment"}
+            Proceed to Payment Proof
           </Text>
         </TouchableOpacity>
       </ScrollView>

@@ -28,7 +28,7 @@ import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const API_BASE = "http://192.168.1.41:3000";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function IncidentDetails() {
   const router = useRouter();
@@ -647,27 +647,152 @@ export default function IncidentDetails() {
           </TouchableOpacity>
         </View>
 
-        {/* Attachments List */}
-        {attachments.photos.length > 0 && (
-          <View className="mb-4">
-            <Text className="text-gray-600 font-medium mb-2">Photos</Text>
-            <FlatList
-              horizontal
-              data={attachments.photos}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <Image
-                  source={{ uri: item }}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    marginRight: 8,
-                    borderRadius: 8,
-                  }}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-            />
+        {/* Attachments List - UPDATED */}
+        {attachments.photos.length > 0 ||
+        attachments.videos.length > 0 ||
+        attachments.documents.length > 0 ? (
+          <View className="mb-6">
+            <Text className="text-gray-700 font-semibold mb-3">
+              Attached Files (
+              {attachments.photos.length +
+                attachments.videos.length +
+                attachments.documents.length}
+              /5)
+            </Text>
+
+            {/* Photos */}
+            {attachments.photos.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-gray-600 font-medium mb-2">
+                  📸 Photos ({attachments.photos.length})
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {attachments.photos.map((uri, index) => (
+                    <View key={index} className="mr-3 relative">
+                      <Image
+                        source={{ uri }}
+                        style={{
+                          width: 100,
+                          height: 100,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: "#e5e7eb",
+                        }}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          setAttachments((prev) => ({
+                            ...prev,
+                            photos: prev.photos.filter((_, i) => i !== index),
+                          }));
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-600 rounded-full"
+                        style={{
+                          width: 24,
+                          height: 24,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text className="text-white text-xs font-bold">×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Videos */}
+            {attachments.videos.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-gray-600 font-medium mb-2">
+                  🎥 Videos ({attachments.videos.length})
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {attachments.videos.map((uri, index) => (
+                    <View key={index} className="mr-3 relative">
+                      <View
+                        className="bg-gray-100 rounded-lg border border-gray-300 items-center justify-center"
+                        style={{ width: 100, height: 100 }}
+                      >
+                        <Video size={32} color="#6b7280" />
+                        <Text className="text-xs text-gray-600 mt-2">
+                          Video {index + 1}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setAttachments((prev) => ({
+                            ...prev,
+                            videos: prev.videos.filter((_, i) => i !== index),
+                          }));
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-600 rounded-full"
+                        style={{
+                          width: 24,
+                          height: 24,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text className="text-white text-xs font-bold">×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Documents */}
+            {attachments.documents.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-gray-600 font-medium mb-2">
+                  📄 Documents ({attachments.documents.length})
+                </Text>
+                {attachments.documents.map((doc, index) => (
+                  <View
+                    key={index}
+                    className="flex-row items-center bg-gray-50 p-3 rounded-lg border border-gray-200 mb-2"
+                  >
+                    <View className="bg-blue-100 p-2 rounded-lg mr-3">
+                      <FileText size={24} color="#3b82f6" />
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="text-gray-900 font-medium text-sm"
+                        numberOfLines={1}
+                        ellipsizeMode="middle"
+                      >
+                        {doc.name}
+                      </Text>
+                      <Text className="text-gray-500 text-xs mt-1">
+                        Document {index + 1}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setAttachments((prev) => ({
+                          ...prev,
+                          documents: prev.documents.filter(
+                            (_, i) => i !== index
+                          ),
+                        }));
+                      }}
+                      className="bg-red-600 rounded-full p-2"
+                    >
+                      <Text className="text-white font-bold">×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <View className="mb-4 p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <Text className="text-gray-500 text-center text-sm">
+              No attachments added yet
+            </Text>
           </View>
         )}
 

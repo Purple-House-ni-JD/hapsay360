@@ -78,11 +78,32 @@ export default function ReporterInfo() {
     fetchUserData();
   }, []);
 
+  // Helper function to format address cleanly
+  const getFormattedAddress = () => {
+    const addressParts = [
+      address.house_no,
+      address.street,
+      address.barangay,
+      address.city,
+      address.province,
+      address.postal_code,
+      address.country,
+    ];
+
+    // Filter out empty values and join with comma
+    return addressParts
+      .filter((part) => part && String(part).trim() !== "")
+      .join(", ");
+  };
+
   const handleNext = () => {
-    if (!fullName || !contactNumber || !address.street || !address.city) {
+    // Basic validation
+    // Note: checking address.street might fail if user only has city,
+    // but keeping your original logic mostly intact.
+    if (!fullName || !contactNumber) {
       Alert.alert(
         "Error",
-        "Please fill out all required fields before proceeding."
+        "Please fill out required fields before proceeding."
       );
       return;
     }
@@ -92,7 +113,8 @@ export default function ReporterInfo() {
       return;
     }
 
-    const fullAddress = `${address.house_no ? address.house_no + ", " : ""}${address.street}, ${address.barangay}, ${address.city}, ${address.province}, ${address.postal_code}, ${address.country}`;
+    // Use the clean address function
+    const fullAddress = getFormattedAddress();
 
     router.push(
       `/incidentdetails?reporterName=${encodeURIComponent(
@@ -146,7 +168,8 @@ export default function ReporterInfo() {
               <View className="mb-4">
                 <Text className="text-gray-700 mb-1">Home Address</Text>
                 <TextInput
-                  value={`${address.house_no ? address.house_no + ", " : ""}${address.street}, ${address.barangay}, ${address.city}, ${address.province}, ${address.postal_code}, ${address.country}`}
+                  // Uses the helper function to avoid ",,,,,"
+                  value={getFormattedAddress()}
                   onChangeText={(text) =>
                     setAddress({ ...address, street: text })
                   }

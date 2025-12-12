@@ -28,7 +28,7 @@ import GradientHeader from "./components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const API_BASE = "http://192.168.1.6:3000";
+const API_BASE = "https://hapsay360backend-1kyj.onrender.com";
 
 export default function IncidentDetails() {
   const router = useRouter();
@@ -633,7 +633,7 @@ export default function IncidentDetails() {
           >
             <Text className="text-white font-medium">📸 Photo</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => showUploadOptions("video")}
             className="flex-1 bg-indigo-600 border border-indigo-600 rounded-lg py-3 mx-1 items-center shadow-sm"
           >
@@ -644,7 +644,7 @@ export default function IncidentDetails() {
             className="flex-1 bg-indigo-600 border border-indigo-600 rounded-lg py-3 ml-2 items-center shadow-sm"
           >
             <Text className="text-white font-medium">📄 Document</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Attachments List - UPDATED */}

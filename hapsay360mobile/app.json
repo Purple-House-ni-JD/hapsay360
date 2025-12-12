@@ -8,6 +8,7 @@
     "scheme": "hapsay360",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+    "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true
     },
@@ -17,18 +18,18 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.hapsay360"
+      "package": "com.johndave.hapsay360"
     },
-    "web": {
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-web-browser"
-    ],
+    "plugins": ["expo-router", "expo-web-browser"],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9b88f5cd-7f1f-46fc-89bc-3e8670c9f27d"
+      }
     }
   }
 }

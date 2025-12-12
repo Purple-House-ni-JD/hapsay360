@@ -18,7 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "./components/GradientHeader";
 
 // UPDATE TO YOUR IP
-const API_BASE = "http://192.168.1.6:3000/api";
+const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
 
 export default function PoliceClearancePaymentProof() {
   const router = useRouter();

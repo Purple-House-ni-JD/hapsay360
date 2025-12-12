@@ -20,7 +20,7 @@ import { ChevronDown, Trash2 } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
 
-const API_BASE = "http://192.168.1.6:3000/api";
+const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
 
 // Map payment methods to images
 const paymentImages = {

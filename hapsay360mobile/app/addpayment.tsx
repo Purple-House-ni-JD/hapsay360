@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CreditCard, ChevronDown } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 
-const API_BASE = "http://192.168.1.41:3000";
+const API_BASE = "https://hapsay360backend-1kyj.onrender.com";
 
 export default function AddPayment() {
   const router = useRouter();

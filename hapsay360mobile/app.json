@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "hapsay360",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true

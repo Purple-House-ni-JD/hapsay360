@@ -240,12 +240,3 @@ Police Clearance is an official certification stating that an individual has no 
 ---
 
 **End of User Manual**
-
----
-
-If you want, I can also:
-
-* Add **badges** (Android/iOS, version, license)
-* Create a **short README** + separate `/docs/UserManual.md`
-* Convert this into **API or developer documentation**
-* Brand it with your **logo and screenshots**

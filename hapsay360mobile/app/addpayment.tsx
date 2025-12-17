@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,11 +20,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CreditCard, ChevronDown } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function AddPayment() {
   const router = useRouter();
-  const { method } = useLocalSearchParams();
+
+  // Get params for Edit Mode
+  const params = useLocalSearchParams();
+  const isEditMode = params.isEditMode === "true";
+  const editId = params.id;
 
   const [isDefault, setIsDefault] = useState(false);
   const [cardholder, setCardholder] = useState("");
@@ -36,7 +40,19 @@ export default function AddPayment() {
   const [cardType, setCardType] = useState("");
   const [showCardTypeModal, setShowCardTypeModal] = useState(false);
 
-  // Available card types from your schema
+  // Pre-fill data if in Edit Mode
+  useEffect(() => {
+    if (isEditMode) {
+      if (params.existingType) setCardType(params.existingType);
+
+      // Note: For security, we usually don't get the full card number/cvv/expiry back.
+      // We can only pre-fill what we have.
+      // If you want to force re-entry for security, leave these blank.
+      // If you want to show the last 4 digits as a placeholder:
+      // setCardNumber(`**** **** **** ${params.existingLast4}`);
+    }
+  }, [isEditMode, params]);
+
   const cardTypes = [
     { value: "visa", label: "Visa" },
     { value: "mastercard", label: "Mastercard" },
@@ -44,15 +60,13 @@ export default function AddPayment() {
     { value: "paymaya", label: "PayMaya" },
   ];
 
-  // Format card number with spaces
-  const formatCardNumber = (text: string) => {
+  const formatCardNumber = (text) => {
     const cleaned = text.replace(/\s/g, "");
     const chunks = cleaned.match(/.{1,4}/g);
     return chunks ? chunks.join(" ") : cleaned;
   };
 
-  // Format expiry date
-  const formatExpiry = (text: string) => {
+  const formatExpiry = (text) => {
     const cleaned = text.replace(/\D/g, "");
     if (cleaned.length >= 2) {
       return cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4);
@@ -60,14 +74,14 @@ export default function AddPayment() {
     return cleaned;
   };
 
-  const handleCardNumberChange = (text: string) => {
+  const handleCardNumberChange = (text) => {
     const cleaned = text.replace(/\s/g, "");
     if (cleaned.length <= 16) {
       setCardNumber(cleaned);
     }
   };
 
-  const handleExpiryChange = (text: string) => {
+  const handleExpiryChange = (text) => {
     const formatted = formatExpiry(text);
     if (formatted.length <= 5) {
       setExpiry(formatted);
@@ -75,35 +89,22 @@ export default function AddPayment() {
   };
 
   const validateCard = () => {
-    // Validate cardholder name
-    if (!cardholder.trim()) {
-      return "Please enter cardholder name";
-    }
+    if (!cardholder.trim()) return "Please enter cardholder name";
 
-    // Validate card number
-    if (cardNumber.length < 13 || cardNumber.length > 19) {
-      return "Please enter a valid card number (13-19 digits)";
-    }
+    // Logic: In edit mode, if they didn't change the number, we might skip length check
+    // But for this simple implementation, we require re-entry of details to update
+    if (cardNumber.length < 13 || cardNumber.length > 19)
+      return "Please enter a valid card number";
 
-    // Card type is required
-    if (!cardType) {
-      return "Please select a card type";
-    }
-
-    // Validate expiry
-    if (expiry.length !== 5) {
-      return "Please enter expiry date in MM/YY format";
-    }
+    if (!cardType) return "Please select a card type";
+    if (expiry.length !== 5) return "Please enter expiry date in MM/YY format";
 
     const [month, year] = expiry.split("/");
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear() % 100;
     const currentMonth = currentDate.getMonth() + 1;
 
-    if (parseInt(month) < 1 || parseInt(month) > 12) {
-      return "Invalid month in expiry date";
-    }
-
+    if (parseInt(month) < 1 || parseInt(month) > 12) return "Invalid month";
     if (
       parseInt(year) < currentYear ||
       (parseInt(year) === currentYear && parseInt(month) < currentMonth)
@@ -111,10 +112,7 @@ export default function AddPayment() {
       return "Card has expired";
     }
 
-    // Validate CVV
-    if (cvv.length < 3 || cvv.length > 4) {
-      return "Please enter a valid CVV";
-    }
+    if (cvv.length < 3 || cvv.length > 4) return "Please enter a valid CVV";
 
     return null;
   };
@@ -138,24 +136,31 @@ export default function AddPayment() {
         return;
       }
 
-      // Prepare payment data according to schema
       const paymentData = {
         user_id: userId,
-        payment_method: cardType, // Use manually selected card type
-        card_last4: cardNumber.slice(-4),
-        provider: cardType, // Same as payment_method
+        payment_method: cardType,
+        card_last4: cardNumber.slice(-4), // We extract last 4 digits
+        provider: cardType,
       };
 
-      console.log("Sending payment data:", paymentData);
+      let url = `${API_BASE}/api/payments`;
+      let method = "POST";
 
-      const response = await fetch(`${API_BASE}/api/payments`, {
-        method: "POST",
+      // If Edit Mode, change URL and Method
+      if (isEditMode && editId) {
+        url = `${API_BASE}/api/payments/${editId}`;
+        method = "PUT";
+      }
+
+      console.log(`${method} request to ${url}`);
+
+      const response = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentData),
       });
 
       const data = await response.json();
-      console.log("Server response:", data);
 
       if (!response.ok) {
         setError(data.error || "Failed to save payment method.");
@@ -163,12 +168,11 @@ export default function AddPayment() {
         return;
       }
 
-      Alert.alert("Success", "Payment method saved successfully!", [
-        {
-          text: "OK",
-          onPress: () => router.back(),
-        },
-      ]);
+      Alert.alert(
+        "Success",
+        `Payment method ${isEditMode ? "updated" : "added"} successfully!`,
+        [{ text: "OK", onPress: () => router.back() }]
+      );
     } catch (err) {
       console.error(err);
       setError("Network error. Please try again.");
@@ -184,9 +188,21 @@ export default function AddPayment() {
     >
       <StatusBar barStyle="light-content" />
       <SafeAreaView className="flex-1 bg-white" edges={["left", "right"]}>
-        <GradientHeader title="Add Payment Card" onBack={() => router.back()} />
+        <GradientHeader
+          title={isEditMode ? "Edit Payment" : "Add Payment Card"}
+          onBack={() => router.back()}
+        />
 
         <ScrollView className="flex-1 px-6 mt-6">
+          {isEditMode && (
+            <View className="bg-yellow-50 p-4 rounded-xl mb-4 border border-yellow-200">
+              <Text className="text-yellow-800 text-xs">
+                Note: For security reasons, please re-enter your full card
+                details to update this payment method.
+              </Text>
+            </View>
+          )}
+
           {/* Card Preview */}
           <View
             className="rounded-2xl p-6 mb-6"
@@ -228,14 +244,13 @@ export default function AddPayment() {
             </View>
           </View>
 
-          {/* Error Message */}
           {error ? (
             <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
               <Text className="text-red-600 text-sm text-center">{error}</Text>
             </View>
           ) : null}
 
-          {/* Set as Default */}
+          {/* Set as Default Switch */}
           <View
             className="flex-row justify-between items-center mb-6 rounded-xl px-4 py-4"
             style={{ backgroundColor: "#F3F4F6" }}
@@ -251,7 +266,7 @@ export default function AddPayment() {
             />
           </View>
 
-          {/* Card Type Selector */}
+          {/* Card Type */}
           <View className="mb-4">
             <Text className="text-gray-700 font-semibold mb-2 text-sm">
               CARD TYPE
@@ -270,7 +285,7 @@ export default function AddPayment() {
             </TouchableOpacity>
           </View>
 
-          {/* Cardholder Name */}
+          {/* Cardholder */}
           <View className="mb-4">
             <Text className="text-gray-700 font-semibold mb-2 text-sm">
               CARDHOLDER NAME
@@ -300,19 +315,11 @@ export default function AddPayment() {
                 onChangeText={handleCardNumberChange}
                 maxLength={19}
               />
-              <View className="absolute right-4 top-4">
-                <TouchableOpacity onPress={() => setShowCardTypeModal(true)}>
-                  <Text className="text-indigo-600 font-semibold text-xs uppercase">
-                    {cardType || "Select"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
 
-          {/* Expiration Date & CVV Row */}
+          {/* Expiry & CVV */}
           <View className="flex-row mb-6" style={{ gap: 12 }}>
-            {/* Expiration Date */}
             <View className="flex-1">
               <Text className="text-gray-700 font-semibold mb-2 text-sm">
                 EXPIRY DATE
@@ -328,7 +335,6 @@ export default function AddPayment() {
               />
             </View>
 
-            {/* CVV */}
             <View className="flex-1">
               <Text className="text-gray-700 font-semibold mb-2 text-sm">
                 CVV
@@ -348,14 +354,7 @@ export default function AddPayment() {
             </View>
           </View>
 
-          {/* Security Notice */}
-          <View className="bg-blue-50 rounded-xl p-4 mb-6">
-            <Text className="text-blue-800 text-xs text-center">
-              🔒 Your card information is encrypted and secure
-            </Text>
-          </View>
-
-          {/* Confirm Button */}
+          {/* Submit Button */}
           <TouchableOpacity
             className={`${loading ? "bg-gray-400" : "bg-indigo-600"} py-4 rounded-xl mb-10`}
             style={{
@@ -373,13 +372,13 @@ export default function AddPayment() {
               <ActivityIndicator color="white" />
             ) : (
               <Text className="text-white text-center font-bold text-base">
-                Add Card
+                {isEditMode ? "Update Card" : "Add Card"}
               </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Card Type Modal */}
+        {/* Modal Logic (Same as before) */}
         <Modal visible={showCardTypeModal} transparent animationType="fade">
           <Pressable
             className="flex-1 bg-black/50 justify-center items-center"

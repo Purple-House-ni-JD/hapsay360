@@ -49,7 +49,7 @@ const timeSlots = {
 
 export default function BookingPoliceClearance() {
   const router = useRouter();
-  const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
+  const API_BASE = "http://192.168.1.6:3000/api";
 
   const [loading, setLoading] = useState(false);
   const [purpose, setPurpose] = useState("");

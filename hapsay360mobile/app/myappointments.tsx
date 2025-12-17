@@ -14,10 +14,11 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+// Added Trash2 icon for the delete button
+import { Trash2 } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 
-// UPDATE THIS TO YOUR IP
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com";
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function MyAppointments() {
   const router = useRouter();
@@ -68,6 +69,51 @@ export default function MyAppointments() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // --- DELETE APPOINTMENT FUNCTION ---
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    Alert.alert(
+      "Delete Appointment",
+      "Are you sure you want to delete this pending appointment? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive", // Makes the button red on iOS
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem("authToken");
+              // Assuming your DELETE route is /api/clearance/:id
+              // Adjust this path if your backend route is different
+              const response = await fetch(
+                `${API_BASE}/api/clearance/${appointmentId}`,
+                {
+                  method: "DELETE",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              const data = await response.json();
+
+              if (response.ok) {
+                Alert.alert("Success", "Appointment deleted successfully.");
+                // Remove from local state immediately so UI updates fast
+                setAppointments((prev) =>
+                  prev.filter((item) => item._id !== appointmentId)
+                );
+              } else {
+                Alert.alert("Error", data.message || "Failed to delete.");
+              }
+            } catch (error) {
+              Alert.alert("Error", "Network error occurred.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Reload when screen comes into focus
@@ -126,7 +172,7 @@ export default function MyAppointments() {
                 No appointments found.
               </Text>
               <TouchableOpacity
-                onPress={() => router.push("/appointments")} // Adjust route if needed
+                onPress={() => router.push("/appointments")}
                 className="mt-4 bg-indigo-600 px-6 py-3 rounded-xl"
               >
                 <Text className="text-white font-semibold">Book Now</Text>
@@ -265,13 +311,37 @@ export default function MyAppointments() {
 
                     <View className="h-px bg-gray-200" />
 
-                    <View className="p-5 bg-white flex-row justify-between items-center">
-                      <View>
-                        <Text className="text-gray-900 font-bold text-xl">
-                          ₱{item.price ? item.price.toFixed(2) : "250.00"}
-                        </Text>
-                        <Text className="text-gray-600 text-sm">Total Fee</Text>
+                    <View className="p-5 bg-white">
+                      <View className="flex-row justify-between items-center mb-4">
+                        <View>
+                          <Text className="text-gray-900 font-bold text-xl">
+                            ₱{item.price ? item.price.toFixed(2) : "250.00"}
+                          </Text>
+                          <Text className="text-gray-600 text-sm">
+                            Total Fee
+                          </Text>
+                        </View>
                       </View>
+
+                      {/* --- DELETE BUTTON SECTION --- */}
+                      {item.status === "pending" ? (
+                        <TouchableOpacity
+                          onPress={() => handleDeleteAppointment(item._id)}
+                          className="flex-row items-center justify-center bg-red-50 border border-red-100 rounded-xl py-3 mt-2"
+                        >
+                          <Trash2 size={18} color="#EF4444" />
+                          <Text className="text-red-600 font-semibold ml-2">
+                            Delete Appointment
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View className="bg-gray-50 rounded-lg p-3 mt-2">
+                          <Text className="text-gray-500 text-xs text-center">
+                            ⓘ Only pending appointments can be deleted. Please
+                            contact the station for support.
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </>
                 )}
@@ -301,7 +371,6 @@ export default function MyAppointments() {
               className="bg-indigo-600 px-8 py-3 rounded-xl"
               onPress={() => {
                 setShowConfirmation(false);
-                // router.push("/payment"); // Navigate if you have a payment screen
               }}
               activeOpacity={0.8}
             >

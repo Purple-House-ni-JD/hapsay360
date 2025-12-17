@@ -38,7 +38,7 @@ interface PaymentMethod {
 }
 
 // UPDATE TO YOUR IP
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
+const API_BASE = "http://192.168.1.6:3000/api";
 
 export default function PoliceClearanceSummary() {
   const router = useRouter();

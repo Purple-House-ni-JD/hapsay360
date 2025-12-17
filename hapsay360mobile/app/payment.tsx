@@ -16,19 +16,19 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ChevronDown, Trash2 } from "lucide-react-native";
+// Added 'Pencil' to imports
+import { ChevronDown, Trash2, Pencil } from "lucide-react-native";
 import GradientHeader from "./components/GradientHeader";
 import BottomNav from "./components/bottomnav";
 
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
+const API_BASE = "http://192.168.1.6:3000/api";
 
-// Map payment methods to images
 const paymentImages = {
   visa: require("../assets/images/visa.jpg"),
   mastercard: require("../assets/images/mastercard.jpg"),
   gcash: require("../assets/images/gcash.jpg"),
   paymaya: require("../assets/images/paymaya.jpg"),
-  cod: require("../assets/images/cod.jpg"), // Cash on Delivery
+  cod: require("../assets/images/cod.jpg"),
 };
 
 export default function Payments() {
@@ -60,7 +60,10 @@ export default function Payments() {
       }
 
       setPayments(data);
-      setSelectedPayment(data.length > 0 ? data[0].payment_method : "");
+      // Only set default if not already set, or logic to remember preference
+      if (!selectedPayment && data.length > 0) {
+        setSelectedPayment(data[0].payment_method);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Network error. Please try again.");
@@ -74,6 +77,19 @@ export default function Payments() {
       fetchPayments();
     }, [])
   );
+
+  const handleEditPayment = (payment) => {
+    // Navigate to AddPayment but pass existing data
+    router.push({
+      pathname: "/addpayment",
+      params: {
+        id: payment._id,
+        existingType: payment.payment_method,
+        existingLast4: payment.card_last4,
+        isEditMode: "true",
+      },
+    });
+  };
 
   const handleDeletePayment = (paymentId) => {
     Alert.alert(
@@ -114,7 +130,7 @@ export default function Payments() {
   };
 
   const getPaymentImage = (method) => {
-    return paymentImages[method.toLowerCase()] || paymentImages.cod;
+    return paymentImages[method?.toLowerCase()] || paymentImages.cod;
   };
 
   return (
@@ -181,7 +197,7 @@ export default function Payments() {
                           ? formatPaymentDisplay(
                               payments.find(
                                 (p) => p.payment_method === selectedPayment
-                              )
+                              ) || { payment_method: selectedPayment }
                             )
                           : "Select default payment"}
                       </Text>
@@ -229,12 +245,23 @@ export default function Payments() {
                           )}
                         </View>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleDeletePayment(payment._id)}
-                        className="p-2"
-                      >
-                        <Trash2 size={20} color="#EF4444" />
-                      </TouchableOpacity>
+
+                      {/* ACTION BUTTONS ROW */}
+                      <View className="flex-row items-center">
+                        <TouchableOpacity
+                          onPress={() => handleEditPayment(payment)}
+                          className="p-2 mr-1"
+                        >
+                          <Pencil size={20} color="#4F46E5" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleDeletePayment(payment._id)}
+                          className="p-2"
+                        >
+                          <Trash2 size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                 </View>

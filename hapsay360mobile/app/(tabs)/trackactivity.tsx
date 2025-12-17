@@ -16,11 +16,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X } from "lucide-react-native";
+// Added Trash2 icon
+import { X, Trash2 } from "lucide-react-native";
 import GradientHeader from "../components/GradientHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com";
+// Make sure this matches your IP
+const API_BASE = "http://192.168.1.6:3000";
 
 export default function TrackRequests() {
   const router = useRouter();
@@ -63,13 +65,56 @@ export default function TrackRequests() {
       if (data.success) {
         setRequests(data.blotters);
       } else {
-        Alert.alert("Error", "Could not fetch requests");
+        // Don't alert on 404 (just means no requests yet)
+        if (response.status !== 404) {
+          Alert.alert("Error", "Could not fetch requests");
+        }
       }
     } catch (error) {
       console.error("Fetch Error:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- DELETE FUNCTION ---
+  const handleDelete = async (blotterId) => {
+    Alert.alert(
+      "Delete Request",
+      "Are you sure you want to delete this blotter request? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem("authToken");
+              const response = await fetch(
+                `${API_BASE}/api/blotters/delete/${blotterId}`,
+                {
+                  method: "DELETE",
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+
+              const data = await response.json();
+
+              if (data.success) {
+                Alert.alert("Success", "Request deleted successfully");
+                // Remove from list immediately
+                setRequests((prev) => prev.filter((r) => r._id !== blotterId));
+                closeDetailsModal();
+              } else {
+                Alert.alert("Error", data.message || "Failed to delete");
+              }
+            } catch (err) {
+              Alert.alert("Error", "Network error");
+            }
+          },
+        },
+      ]
+    );
   };
 
   // --- MODAL HANDLERS ---
@@ -92,22 +137,6 @@ export default function TrackRequests() {
       setShowDetailsModal(false);
       setSelectedRequest(null);
     });
-  };
-
-  // --- HELPER: MAP BACKEND COLOR TO TAILWIND ---
-  const getStatusColor = (colorName) => {
-    switch (colorName) {
-      case "green":
-        return "bg-green-500";
-      case "blue":
-        return "bg-blue-500";
-      case "orange":
-        return "bg-orange-500";
-      case "red":
-        return "bg-red-500";
-      default:
-        return "bg-gray-300";
-    }
   };
 
   const Divider = ({ color }: { color: string }) => (
@@ -168,7 +197,6 @@ export default function TrackRequests() {
                     <Text className="text-gray-900 font-medium text-base">
                       Incident Type
                     </Text>
-                    {/* FIXED: incident.type (matches your schema) */}
                     <Text className="text-gray-600 text-sm">
                       {item.incident?.type ||
                         item.incident?.incident_type ||
@@ -236,6 +264,19 @@ export default function TrackRequests() {
               >
                 <X size={24} color="#000" />
               </TouchableOpacity>
+
+              {/* DELETE BUTTON (Only if status is Pending) */}
+              {selectedRequest?.status === "Pending" && (
+                <TouchableOpacity
+                  onPress={() => handleDelete(selectedRequest._id)}
+                  className="flex-row items-center bg-red-50 px-3 py-2 rounded-lg"
+                >
+                  <Trash2 size={20} color="#EF4444" />
+                  <Text className="text-red-600 font-semibold ml-2">
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Scrollable Content */}
@@ -259,7 +300,6 @@ export default function TrackRequests() {
 
                   <View className="h-[1px] bg-gray-300 mb-4" />
 
-                  {/* FIXED: Reading from incident.type */}
                   <Text className="font-bold text-gray-900 mb-1">
                     Incident Type:{" "}
                     <Text className="font-normal">
@@ -312,12 +352,15 @@ export default function TrackRequests() {
                   </Text>
                   <View className="mb-4">
                     <View className="w-full h-40 bg-gray-200 rounded-xl mb-2 items-center justify-center overflow-hidden">
-                      {/* Check if attachments exist and are photo types */}
+                      {/* FIXED IMAGE DISPLAY */}
                       {selectedRequest.attachments &&
                       selectedRequest.attachments.length > 0 &&
-                      selectedRequest.attachments[0].type === "photo" ? (
+                      selectedRequest.attachments[0].url ? (
                         <Image
-                          source={{ uri: selectedRequest.attachments[0].url }}
+                          // We must combine API_BASE with the relative URL from backend
+                          source={{
+                            uri: `${API_BASE}${selectedRequest.attachments[0].url}`,
+                          }}
                           style={{ width: "100%", height: "100%" }}
                           resizeMode="cover"
                         />

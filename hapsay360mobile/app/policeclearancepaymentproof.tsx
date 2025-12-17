@@ -18,7 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import GradientHeader from "./components/GradientHeader";
 
 // UPDATE TO YOUR IP
-const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
+const API_BASE = "http://192.168.1.6:3000/api";
 
 export default function PoliceClearancePaymentProof() {
   const router = useRouter();
@@ -167,7 +167,7 @@ export default function PoliceClearancePaymentProof() {
         showsVerticalScrollIndicator={false}
       >
         {/* Info Card */}
-        <View className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+        <View className="bg-blue-50 border border-blue-100 rounded-xl p-12 mb-6">
           <Text className="text-blue-900 font-bold text-lg mb-2">
             Verification Required
           </Text>
@@ -255,6 +255,24 @@ export default function PoliceClearancePaymentProof() {
                 <Text className="text-white font-bold text-lg">
                   Submit Proof & Finish
                 </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleSubmitAll}
+            disabled={uploading || !imageUri}
+            className={`w-full bg-white
+               py-4 rounded-xl items-center shadow-sm ${
+                 uploading || !imageUri ? "opacity-50" : "opacity-100"
+               }`}
+          >
+            {uploading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <View className="flex-row items-center">
+                <Upload size={20} color="white" style={{ marginRight: 8 }} />
+                <Text className="text-white font-bold text-lg"></Text>
               </View>
             )}
           </TouchableOpacity>

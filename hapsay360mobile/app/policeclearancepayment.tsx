@@ -40,7 +40,7 @@ export default function PoliceClearancePayment() {
   const appointmentId = params.appointmentId as string;
   const appointmentDataParam = params.appointmentData as string;
 
-  const API_BASE = "https://hapsay360backend-1kyj.onrender.com/api";
+  const API_BASE = "http://192.168.1.6:3000/api";
 
   const [selectedPayment, setSelectedPayment] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
